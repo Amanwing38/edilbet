@@ -144,6 +144,8 @@ function launchBot(token, initialUrl) {
             onStart: (botInfo) => {
                 console.log(`🤖 Telegram Bot @${botInfo.username} launched successfully with dynamic accounts!`);
             }
+        }).catch((err) => {
+            console.error('⚠️ Telegram polling error (handled):', err.message);
         });
     }
     catch (err) {

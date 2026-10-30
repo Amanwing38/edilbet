@@ -13,6 +13,13 @@ import { PromotionService } from './services/promotionService.js';
 import { AffiliateService } from './services/affiliateService.js';
 import { launchBot } from './bot.js';
 
+process.on('uncaughtException', (err) => {
+  console.error('Server Uncaught Exception (recovering):', err.message);
+});
+process.on('unhandledRejection', (reason: any) => {
+  console.error('Server Unhandled Rejection (recovering):', reason?.message || reason);
+});
+
 const dockerPath = path.resolve(process.cwd(), 'client/dist');
 const localPath = path.resolve(process.cwd(), '../client/dist');
 const clientDistPath = fs.existsSync(dockerPath) ? dockerPath : localPath;

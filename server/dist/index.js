@@ -17,6 +17,12 @@ const aviatorRoom_js_1 = require("./games/aviatorRoom.js");
 const promotionService_js_1 = require("./services/promotionService.js");
 const affiliateService_js_1 = require("./services/affiliateService.js");
 const bot_js_1 = require("./bot.js");
+process.on('uncaughtException', (err) => {
+    console.error('Server Uncaught Exception (recovering):', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('Server Unhandled Rejection (recovering):', reason?.message || reason);
+});
 const dockerPath = path_1.default.resolve(process.cwd(), 'client/dist');
 const localPath = path_1.default.resolve(process.cwd(), '../client/dist');
 const clientDistPath = fs_1.default.existsSync(dockerPath) ? dockerPath : localPath;
