@@ -3,7 +3,7 @@ import { UserService } from './services/userService.js';
 import { WalletService } from './services/walletService.js';
 
 let botInstance: Bot | null = null;
-let currentWebAppHttpsUrl = process.env.WEBAPP_URL || 'https://rooms-hardware-except-despite.trycloudflare.com';
+let currentWebAppHttpsUrl = process.env.WEBAPP_URL || 'https://edilbet.onrender.com';
 
 export function updateBotWebAppUrl(url: string) {
   currentWebAppHttpsUrl = url;

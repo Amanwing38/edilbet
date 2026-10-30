@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import { Server as SocketIOServer } from 'socket.io';
 import { WalletService } from './services/walletService.js';
 import { UserService } from './services/userService.js';
@@ -12,7 +13,9 @@ import { PromotionService } from './services/promotionService.js';
 import { AffiliateService } from './services/affiliateService.js';
 import { launchBot } from './bot.js';
 
-const clientDistPath = path.resolve(process.cwd(), '../client/dist');
+const dockerPath = path.resolve(process.cwd(), 'client/dist');
+const localPath = path.resolve(process.cwd(), '../client/dist');
+const clientDistPath = fs.existsSync(dockerPath) ? dockerPath : localPath;
 
 const app = express();
 const server = http.createServer(app);
