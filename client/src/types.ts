@@ -35,6 +35,7 @@ export interface AviatorLiveBet {
   avatarLetter: string;
   stake: number;
   cashedOutAt?: number;
+  multiplier?: number;
   payout: number;
   cashedOut: boolean;
 }

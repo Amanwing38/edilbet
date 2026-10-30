@@ -7,9 +7,10 @@ interface SidebarProps {
   activeTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   language: 'am' | 'en';
+  hiddenOnMobile?: boolean;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, language }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, language, hiddenOnMobile }) => {
   const menuItems: { id: NavTab; labelEn: string; labelAm: string; icon: React.ReactNode }[] = [
     { id: 'games', labelEn: 'Games', labelAm: 'Games', icon: <Compass className="w-5 h-5" /> },
     { id: 'raffle', labelEn: 'Raffle', labelAm: 'Raffle', icon: <Ticket className="w-5 h-5" /> },
@@ -71,28 +72,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, langua
         </div>
       </aside>
 
-      {/* Mobile Bottom Navigation Bar (Pixel-Matched to Screenshot) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0c1117]/98 backdrop-blur-lg border-t border-[#1b2332] grid grid-cols-6 items-stretch h-14">
-        {menuItems.map((item) => {
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onSelectTab(item.id)}
-              className={`flex flex-col items-center justify-center gap-0.5 transition-all h-full ${
-                isActive
-                  ? 'bg-[#00E676] text-black font-black'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              <div>{item.icon}</div>
-              <span className={`text-[10px] ${isActive ? 'font-black' : 'font-semibold'}`}>
-                {item.labelEn}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+      {/* Mobile Bottom Navigation Bar (Hidden when in Aviator/Game mode) */}
+      {!hiddenOnMobile && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0c1117]/98 backdrop-blur-lg border-t border-[#1b2332] grid grid-cols-6 items-stretch h-14">
+          {menuItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => onSelectTab(item.id)}
+                className={`flex flex-col items-center justify-center gap-0.5 transition-all h-full ${
+                  isActive
+                    ? 'bg-[#00E676] text-black font-black'
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <div>{item.icon}</div>
+                <span className={`text-[10px] ${isActive ? 'font-black' : 'font-semibold'}`}>
+                  {item.labelEn}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
     </>
   );
 };

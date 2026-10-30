@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { Eye, EyeOff, ChevronDown, ChevronLeft } from 'lucide-react';
 import { UserWallet } from '../types';
 
 interface HeaderProps {
@@ -11,6 +11,8 @@ interface HeaderProps {
   onToggleLanguage: () => void;
   userId?: string;
   userName?: string;
+  showBack?: boolean;
+  onBack?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,23 +22,39 @@ export const Header: React.FC<HeaderProps> = ({
   pendingDepositsCount,
   language,
   userId,
-  userName
+  userName,
+  showBack,
+  onBack
 }) => {
   const [showBalance, setShowBalance] = useState(true);
 
   return (
     <header className="sticky top-0 z-40 bg-[#0c1117] border-b border-[#1b2332] px-3 sm:px-4 py-2.5 flex items-center justify-between">
-      {/* Left: Brand Logo & Title (Matching Mela Bet / Edil Bet) */}
-      <div className="flex items-center gap-2 cursor-pointer">
-        <div className="w-9 h-9 rounded-xl bg-[#141d28] border border-[#233348] flex items-center justify-center shadow-md">
-          <span className="text-[#00E676] font-black text-sm tracking-tighter">
-            EB
-          </span>
-        </div>
-        <div className="flex flex-col">
-          <h1 className="text-base font-black tracking-tight text-[#00E676]">
-            Edil Bet
-          </h1>
+      {/* Left: Back button + Brand Logo & Title */}
+      <div className="flex items-center gap-2">
+        {showBack && (
+          <button
+            onClick={onBack}
+            className="w-9 h-9 rounded-xl bg-[#151d28] hover:bg-[#1f2b3b] border border-[#233348] flex items-center justify-center text-gray-300 hover:text-white transition-all active:scale-95 shadow-md"
+            title="Back to Lobby"
+          >
+            <ChevronLeft className="w-5 h-5 text-gray-200" />
+          </button>
+        )}
+
+        <div className="flex items-center gap-2 cursor-pointer" onClick={onBack}>
+          <div className="w-9 h-9 rounded-xl bg-[#141d28] border border-[#233348] flex items-center justify-center shadow-md">
+            <span className="text-[#00E676] font-black text-sm tracking-tighter">
+              EB
+            </span>
+          </div>
+          {!showBack && (
+            <div className="flex flex-col">
+              <h1 className="text-base font-black tracking-tight text-[#00E676]">
+                Edil Bet
+              </h1>
+            </div>
+          )}
         </div>
       </div>
 

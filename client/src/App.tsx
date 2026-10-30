@@ -130,8 +130,10 @@ export const App: React.FC = () => {
       .catch(() => {});
   }, [currentUser.id]);
 
+  const isGameOpen = activeTab === 'games' && selectedGame !== 'lobby';
+
   return (
-    <div className="min-h-screen bg-[#0b0e14] text-white flex flex-col pb-20 md:pb-6 select-none">
+    <div className={`min-h-screen bg-[#0b0e14] text-white flex flex-col ${isGameOpen ? 'pb-2 md:pb-6' : 'pb-20 md:pb-6'} select-none`}>
       {/* Top Header */}
       <Header
         wallet={wallet}
@@ -142,6 +144,8 @@ export const App: React.FC = () => {
         onToggleLanguage={() => setLanguage(language === 'am' ? 'en' : 'am')}
         userId={currentUser.id}
         userName={currentUser.firstName}
+        showBack={isGameOpen}
+        onBack={() => setSelectedGame('lobby')}
       />
 
       <div className="flex flex-1">
@@ -153,47 +157,14 @@ export const App: React.FC = () => {
             if (tab === 'games') setSelectedGame('lobby');
           }}
           language={language}
+          hiddenOnMobile={isGameOpen}
         />
 
         {/* Main Content Viewport */}
-        <main className="flex-1 p-3 sm:p-5 md:p-6 overflow-y-auto max-w-7xl mx-auto w-full">
+        <main className={`flex-1 ${isGameOpen ? 'p-1 sm:p-4' : 'p-3 sm:p-5 md:p-6'} overflow-y-auto max-w-7xl mx-auto w-full`}>
           {/* TAB 1: ALL GAMES SUITE & MELA BET HOME SCREEN */}
           {activeTab === 'games' && (
-            <div className="flex flex-col gap-3">
-              {/* If a game is currently open, show a clean Back to Lobby header bar */}
-              {selectedGame !== 'lobby' && (
-                <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-1 border-b border-[#1b2332]">
-                  <button
-                    onClick={() => setSelectedGame('lobby')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#141b26] hover:bg-[#1a2333] border border-[#232f45] text-xs font-black text-gray-200 transition-all shrink-0"
-                  >
-                    <span>‹</span>
-                    <span>All Games</span>
-                  </button>
-
-                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                    {[
-                      { id: 'aviator', name: '✈️ Aviator' },
-                      { id: 'fast-keno', name: '🎱 Fast Keno' },
-                      { id: 'chicken-road', name: '🐔 Chicken Road' },
-                      { id: 'crazy-777', name: '🎰 Slots' },
-                    ].map((g) => (
-                      <button
-                        key={g.id}
-                        onClick={() => setSelectedGame(g.id)}
-                        className={`px-3 py-1 rounded-xl font-bold text-xs shrink-0 transition-all ${
-                          selectedGame === g.id
-                            ? 'bg-[#00E676] text-black font-black'
-                            : 'bg-[#141b26] text-gray-300 hover:text-white'
-                        }`}
-                      >
-                        {g.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
+            <div className="flex flex-col gap-2">
               {/* Home Screen: Full Mela Bet Lobby */}
               {selectedGame === 'lobby' && (
                 <GamesLobby
@@ -216,6 +187,7 @@ export const App: React.FC = () => {
                   onRefreshWallet={refreshWallet}
                   language={language}
                   currentUser={currentUser}
+                  onBack={() => setSelectedGame('lobby')}
                 />
               )}
 

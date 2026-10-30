@@ -158,8 +158,8 @@ export class AviatorRoom {
       throw new Error('Bets can only be placed during the 5-second countdown.');
     }
 
-    if (params.stake < 10) {
-      throw new Error('Minimum bet is 10 ETB.');
+    if (params.stake < 1) {
+      throw new Error('Minimum bet is 1 ETB.');
     }
 
     // Debit stake from user's wallet
