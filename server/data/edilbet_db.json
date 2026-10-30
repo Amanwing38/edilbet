@@ -1,0 +1,48 @@
+{
+  "users": {
+    "EB-741891": {
+      "id": "EB-741891",
+      "telegramId": 55443322,
+      "username": "tesfaye_t",
+      "firstName": "Tesfaye",
+      "language": "am",
+      "role": "user",
+      "createdAt": "2026-10-30T20:25:14.037Z"
+    }
+  },
+  "usersByTelegramId": {
+    "55443322": "EB-741891"
+  },
+  "wallets": {
+    "EB-741891": {
+      "userId": "EB-741891",
+      "currency": "ETB",
+      "availableBalance": 946.21,
+      "bonusBalance": 0,
+      "wagerRemaining": 0,
+      "totalDeposited": 750,
+      "totalWithdrawn": 0,
+      "updatedAt": "2026-10-30T20:25:14.102Z"
+    }
+  },
+  "transactions": {
+    "4ca9710c-7835-44d3-960d-0e405adb46c1": {
+      "id": "4ca9710c-7835-44d3-960d-0e405adb46c1",
+      "orderNumber": "ORD-914083",
+      "userId": "EB-741891",
+      "username": "Player",
+      "type": "DEPOSIT",
+      "amount": 750,
+      "fee": 0,
+      "paymentMethod": "TELEBIRR",
+      "senderPhone": "0911223344",
+      "recipientPhone": "0938749239",
+      "status": "COMPLETED",
+      "createdAt": "2026-10-30T20:25:14.083Z",
+      "expiresAt": "2026-10-30T20:55:14.083Z",
+      "referenceCode": "FT91914093",
+      "settledAt": "2026-10-30T20:25:14.097Z",
+      "adminNote": "Customer submitted payment proof. Balance instantly credited."
+    }
+  }
+}

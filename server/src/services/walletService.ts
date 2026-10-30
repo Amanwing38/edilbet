@@ -1,13 +1,8 @@
 import { Wallet, Transaction, TransactionType } from '../types.js';
+import { DBService } from '../db/database.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class WalletService {
-  private static wallets: Map<string, Wallet> = new Map();
-  private static transactions: Map<string, Transaction> = new Map();
-  private static usedReferenceCodes: Set<string> = new Set();
-  private static lastWithdrawalTimestamps: Map<string, number> = new Map();
-  private static dailyWithdrawalAmounts: Map<string, { date: string; amount: number }> = new Map();
-
   // Platform Cashier Configuration
   public static readonly TELEBIRR_RECIPIENT = '0938749239';
   public static readonly CBE_RECIPIENT = '1000450457047';
@@ -15,19 +10,17 @@ export class WalletService {
   // Limits & Fees
   public static readonly MIN_DEPOSIT = 50;
   public static readonly MAX_DEPOSIT = 10000;
-  public static readonly MIN_WITHDRAWAL = 50; // Accessible min withdrawal
+  public static readonly MIN_WITHDRAWAL = 50;
   public static readonly MAX_WITHDRAWAL = 10000;
   public static readonly WITHDRAWAL_FEE = 50; // Fixed 50 ETB transfer fee
   public static readonly DAILY_WITHDRAWAL_LIMIT = 20000;
-  public static readonly WITHDRAWAL_COOLDOWN_MS = 0; // Seamless instant processing
 
   /**
-   * Initialize or retrieve user wallet
+   * Initialize or retrieve user wallet from SQLite DB
    */
   static getOrCreateWallet(userId: string): Wallet {
-    let wallet = this.wallets.get(userId);
+    let wallet = DBService.getWallet(userId);
     if (!wallet) {
-      // Admin account starts with demo funds; new user accounts start with 0.00 ETB
       const isAdmin = userId === 'EB-741891' || userId.includes('8148611275');
       wallet = {
         userId,
@@ -39,7 +32,7 @@ export class WalletService {
         totalWithdrawn: 0.00,
         updatedAt: new Date().toISOString()
       };
-      this.wallets.set(userId, wallet);
+      DBService.saveWallet(wallet);
     }
     return wallet;
   }
@@ -56,12 +49,13 @@ export class WalletService {
     wallet.availableBalance = parseFloat((wallet.availableBalance - stake).toFixed(2));
     wallet.updatedAt = new Date().toISOString();
 
-    // Deduct wagering requirement if active
     if (wallet.wagerRemaining > 0) {
       wallet.wagerRemaining = Math.max(0, parseFloat((wallet.wagerRemaining - stake).toFixed(2)));
     }
 
-    // Record ledger transaction
+    // Persist to database
+    DBService.saveWallet(wallet);
+
     const tx: Transaction = {
       id: uuidv4(),
       orderNumber: `TX-${Date.now().toString().slice(-6)}`,
@@ -75,7 +69,7 @@ export class WalletService {
       createdAt: new Date().toISOString(),
       settledAt: new Date().toISOString()
     };
-    this.transactions.set(tx.id, tx);
+    DBService.saveTransaction(tx);
 
     return wallet;
   }
@@ -87,6 +81,9 @@ export class WalletService {
     const wallet = this.getOrCreateWallet(userId);
     wallet.availableBalance = parseFloat((wallet.availableBalance + payout).toFixed(2));
     wallet.updatedAt = new Date().toISOString();
+
+    // Persist to database
+    DBService.saveWallet(wallet);
 
     const tx: Transaction = {
       id: uuidv4(),
@@ -101,7 +98,7 @@ export class WalletService {
       createdAt: new Date().toISOString(),
       settledAt: new Date().toISOString()
     };
-    this.transactions.set(tx.id, tx);
+    DBService.saveTransaction(tx);
 
     return wallet;
   }
@@ -127,7 +124,7 @@ export class WalletService {
     }
 
     const orderNumber = `ORD-${Date.now().toString().slice(-6)}`;
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes expiration
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
     const order: Transaction = {
       id: uuidv4(),
@@ -146,16 +143,15 @@ export class WalletService {
       expiresAt
     };
 
-    this.transactions.set(order.id, order);
+    DBService.saveTransaction(order);
     return order;
   }
 
   /**
-   * Customer submits proof / Transaction ID after transferring (Step 2: I've Paid)
-   * Instantly credits player's wallet upon receiving proof!
+   * Customer submits proof / Transaction ID (Step 2) -> Instantly credits player's wallet!
    */
   static submitDepositProof(orderId: string, referenceCode: string): { order: Transaction; wallet: Wallet } {
-    const order = this.transactions.get(orderId);
+    const order = DBService.getTransactionById(orderId);
     if (!order) {
       throw new Error('Deposit order not found.');
     }
@@ -166,36 +162,37 @@ export class WalletService {
     }
 
     const trimmedCode = referenceCode.trim().toUpperCase();
-    if (this.usedReferenceCodes.has(trimmedCode)) {
+    const existing = DBService.getTransactionByReference(trimmedCode);
+    if (existing && existing.id !== order.id) {
       throw new Error('This Transaction ID has already been submitted or approved. Duplicate submissions are not allowed.');
     }
-    this.usedReferenceCodes.add(trimmedCode);
 
     order.referenceCode = trimmedCode;
     order.status = 'COMPLETED';
     order.settledAt = new Date().toISOString();
     order.adminNote = 'Customer submitted payment proof. Balance instantly credited.';
+    DBService.saveTransaction(order);
 
-    // Instantly credit player's wallet
+    // Instantly credit player's wallet & persist to database
     const wallet = this.getOrCreateWallet(order.userId);
     wallet.availableBalance = parseFloat((wallet.availableBalance + order.amount).toFixed(2));
     wallet.totalDeposited = parseFloat((wallet.totalDeposited + order.amount).toFixed(2));
     wallet.updatedAt = new Date().toISOString();
+    DBService.saveWallet(wallet);
 
     return { order, wallet };
   }
 
   /**
-   * Admin verifies SMS and Approves Deposit (Instant Balance Credit)
+   * Admin verifies and Approves Deposit
    */
   static approveDeposit(orderId: string, adminUsername: string): { order: Transaction; wallet: Wallet } {
-    const order = this.transactions.get(orderId);
+    const order = DBService.getTransactionById(orderId);
     if (!order) {
       throw new Error('Deposit order not found.');
     }
 
     const wallet = this.getOrCreateWallet(order.userId);
-
     if (order.status === 'APPROVED' || order.status === 'COMPLETED') {
       return { order, wallet };
     }
@@ -203,23 +200,21 @@ export class WalletService {
     order.status = 'APPROVED';
     order.settledAt = new Date().toISOString();
     order.adminNote = `Approved by admin ${adminUsername} via SMS verification.`;
-
-    if (order.referenceCode) {
-      this.usedReferenceCodes.add(order.referenceCode);
-    }
+    DBService.saveTransaction(order);
 
     wallet.availableBalance = parseFloat((wallet.availableBalance + order.amount).toFixed(2));
     wallet.totalDeposited = parseFloat((wallet.totalDeposited + order.amount).toFixed(2));
     wallet.updatedAt = new Date().toISOString();
+    DBService.saveWallet(wallet);
 
     return { order, wallet };
   }
 
   /**
-   * Admin Rejects Fake or Unmatched Deposit
+   * Admin Rejects Deposit
    */
   static rejectDeposit(orderId: string, reason: string): Transaction {
-    const order = this.transactions.get(orderId);
+    const order = DBService.getTransactionById(orderId);
     if (!order) {
       throw new Error('Deposit order not found.');
     }
@@ -227,6 +222,7 @@ export class WalletService {
     order.status = 'REJECTED';
     order.adminNote = reason || 'Deposit rejected: SMS proof did not match platform account.';
     order.settledAt = new Date().toISOString();
+    DBService.saveTransaction(order);
     return order;
   }
 
@@ -290,6 +286,7 @@ export class WalletService {
     wallet.availableBalance = parseFloat((wallet.availableBalance - totalDebit).toFixed(2));
     wallet.totalWithdrawn = parseFloat((wallet.totalWithdrawn + amount).toFixed(2));
     wallet.updatedAt = new Date().toISOString();
+    DBService.saveWallet(wallet);
 
     const tx: Transaction = {
       id: uuidv4(),
@@ -306,7 +303,7 @@ export class WalletService {
       status: 'PENDING',
       createdAt: new Date().toISOString()
     };
-    this.transactions.set(tx.id, tx);
+    DBService.saveTransaction(tx);
 
     return { transaction: tx, wallet, bonusCancelled };
   }
@@ -315,13 +312,14 @@ export class WalletService {
    * Complete Withdrawal (Admin marked as paid)
    */
   static completeWithdrawal(txId: string, adminUsername: string): Transaction {
-    const tx = this.transactions.get(txId);
+    const tx = DBService.getTransactionById(txId);
     if (!tx) throw new Error('Transaction not found.');
     if (tx.status === 'COMPLETED') return tx;
 
     tx.status = 'COMPLETED';
     tx.settledAt = new Date().toISOString();
     tx.adminNote = `Paid & dispatched by admin ${adminUsername}`;
+    DBService.saveTransaction(tx);
     return tx;
   }
 
@@ -329,7 +327,7 @@ export class WalletService {
    * Reject Withdrawal & Refund (Amount + 50 ETB Fee)
    */
   static rejectWithdrawal(txId: string, reason: string): { transaction: Transaction; wallet: Wallet } {
-    const tx = this.transactions.get(txId);
+    const tx = DBService.getTransactionById(txId);
     if (!tx) throw new Error('Transaction not found.');
     if (tx.status === 'REJECTED') {
       const wallet = this.getOrCreateWallet(tx.userId);
@@ -339,6 +337,7 @@ export class WalletService {
     tx.status = 'REJECTED';
     tx.settledAt = new Date().toISOString();
     tx.adminNote = reason || 'Withdrawal rejected by admin. Funds refunded.';
+    DBService.saveTransaction(tx);
 
     // Refund full amount + 50 ETB fee
     const refundTotal = Math.abs(tx.amount) + (tx.fee || 50);
@@ -346,6 +345,7 @@ export class WalletService {
     wallet.availableBalance = parseFloat((wallet.availableBalance + refundTotal).toFixed(2));
     wallet.totalWithdrawn = Math.max(0, parseFloat((wallet.totalWithdrawn - Math.abs(tx.amount)).toFixed(2)));
     wallet.updatedAt = new Date().toISOString();
+    DBService.saveWallet(wallet);
 
     return { transaction: tx, wallet };
   }
@@ -354,26 +354,20 @@ export class WalletService {
    * List all transactions for a user
    */
   static getUserTransactions(userId: string): Transaction[] {
-    return Array.from(this.transactions.values())
-      .filter(t => t.userId === userId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return DBService.getUserTransactions(userId);
   }
 
   /**
    * List pending deposits for Admin Cashier Dashboard
    */
   static getPendingDeposits(): Transaction[] {
-    return Array.from(this.transactions.values())
-      .filter(t => t.type === 'DEPOSIT' && t.status === 'PENDING')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return DBService.getPendingDeposits();
   }
 
   /**
    * List pending withdrawals for Admin Cashier Dashboard
    */
   static getPendingWithdrawals(): Transaction[] {
-    return Array.from(this.transactions.values())
-      .filter(t => t.type === 'WITHDRAWAL' && t.status === 'PENDING')
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return DBService.getPendingWithdrawals();
   }
 }

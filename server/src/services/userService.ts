@@ -1,42 +1,45 @@
 import { User, Wallet } from '../types.js';
 import { WalletService } from './walletService.js';
-import { v4 as uuidv4 } from 'uuid';
+import { DBService } from '../db/database.js';
 
 export class UserService {
-  private static usersByTelegramId: Map<number, User> = new Map();
-  private static usersById: Map<string, User> = new Map();
-  private static accountCounter: number = 741890;
-
   static getOrCreateUser(params: {
     telegramId: number;
     username?: string;
     firstName?: string;
     referredBy?: string;
   }): { user: User; wallet: Wallet; isNew: boolean } {
-    let user = this.usersByTelegramId.get(params.telegramId);
+    let user = DBService.getUserByTelegramId(params.telegramId);
     let isNew = false;
 
     if (!user) {
       isNew = true;
-      this.accountCounter++;
-      const id = `EB-${this.accountCounter}`;
+      const count = DBService.countUsers();
+      const id = `EB-${741891 + count}`;
       user = {
         id,
         telegramId: params.telegramId,
         username: params.username || `Player_${params.telegramId.toString().slice(-4)}`,
         firstName: params.firstName || 'Player',
         language: 'am',
-        role: params.telegramId === 8148611275 ? 'admin' : 'user', // Automatically grant admin role to operator DriveAddis
+        role: params.telegramId === 8148611275 ? 'admin' : 'user',
         referredBy: params.referredBy,
         createdAt: new Date().toISOString()
       };
-
-      this.usersByTelegramId.set(params.telegramId, user);
-      this.usersById.set(id, user);
+      DBService.saveUser(user);
     } else {
-      // Update details if changed
-      if (params.username) user.username = params.username;
-      if (params.firstName) user.firstName = params.firstName;
+      let updated = false;
+      if (params.username && params.username !== user.username) {
+        user.username = params.username;
+        updated = true;
+      }
+      if (params.firstName && params.firstName !== user.firstName) {
+        user.firstName = params.firstName;
+        updated = true;
+      }
+      if (updated) {
+        DBService.saveUser(user);
+      }
     }
 
     const wallet = WalletService.getOrCreateWallet(user.id);
@@ -44,23 +47,18 @@ export class UserService {
   }
 
   static updateUserPhone(telegramId: number, phoneNumber: string): User | undefined {
-    const user = this.usersByTelegramId.get(telegramId);
-    if (user) {
-      user.phoneNumber = phoneNumber;
-      return user;
-    }
-    return undefined;
+    DBService.updateUserPhone(telegramId, phoneNumber);
+    const user = DBService.getUserByTelegramId(telegramId);
+    return user || undefined;
   }
 
   static getUserById(id: string): User | undefined {
-    return this.usersById.get(id);
+    const user = DBService.getUserById(id);
+    return user || undefined;
   }
 
   static getUserByTelegramId(telegramId: number): User | undefined {
-    return this.usersByTelegramId.get(telegramId);
-  }
-
-  static getAllUsers(): User[] {
-    return Array.from(this.usersById.values());
+    const user = DBService.getUserByTelegramId(telegramId);
+    return user || undefined;
   }
 }
