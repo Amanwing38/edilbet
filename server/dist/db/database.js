@@ -168,5 +168,25 @@ class DBService {
             .filter((t) => t.type === 'WITHDRAWAL' && t.status === 'PENDING')
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
+    static getPlatformStats() {
+        this.init();
+        let totalDeposited = 0;
+        let totalWithdrawn = 0;
+        let totalBalance = 0;
+        for (const w of this.wallets.values()) {
+            totalDeposited += w.totalDeposited || 0;
+            totalWithdrawn += w.totalWithdrawn || 0;
+            totalBalance += w.availableBalance || 0;
+        }
+        return {
+            totalUsers: this.users.size,
+            totalWallets: this.wallets.size,
+            totalDeposited: parseFloat(totalDeposited.toFixed(2)),
+            totalWithdrawn: parseFloat(totalWithdrawn.toFixed(2)),
+            totalBalance: parseFloat(totalBalance.toFixed(2)),
+            totalTransactions: this.transactions.size,
+            recentUsers: Array.from(this.users.values()).slice(-10).reverse()
+        };
+    }
 }
 exports.DBService = DBService;

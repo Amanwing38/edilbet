@@ -17,6 +17,7 @@ const provablyFair_js_1 = require("./games/provablyFair.js");
 const aviatorRoom_js_1 = require("./games/aviatorRoom.js");
 const promotionService_js_1 = require("./services/promotionService.js");
 const affiliateService_js_1 = require("./services/affiliateService.js");
+const database_js_1 = require("./db/database.js");
 const bot_js_1 = require("./bot.js");
 process.on('uncaughtException', (err) => {
     console.error('Server Uncaught Exception (recovering):', err.message);
@@ -167,6 +168,9 @@ app.post('/api/wallet/withdraw', (req, res) => {
     }
 });
 // Admin Cashier Endpoints
+app.get('/api/admin/stats', (req, res) => {
+    res.json({ success: true, stats: database_js_1.DBService.getPlatformStats() });
+});
 app.get('/api/admin/deposits', (req, res) => {
     const pending = walletService_js_1.WalletService.getPendingDeposits();
     res.json({ pending });

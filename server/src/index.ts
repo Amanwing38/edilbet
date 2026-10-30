@@ -12,6 +12,7 @@ import { ProvablyFair } from './games/provablyFair.js';
 import { AviatorRoom } from './games/aviatorRoom.js';
 import { PromotionService } from './services/promotionService.js';
 import { AffiliateService } from './services/affiliateService.js';
+import { DBService } from './db/database.js';
 import { launchBot, notifyAdminNewDeposit, notifyAdminNewWithdrawal, registerSocketEmitter } from './bot.js';
 
 process.on('uncaughtException', (err) => {
@@ -175,6 +176,10 @@ app.post('/api/wallet/withdraw', (req, res) => {
 });
 
 // Admin Cashier Endpoints
+app.get('/api/admin/stats', (req, res) => {
+  res.json({ success: true, stats: DBService.getPlatformStats() });
+});
+
 app.get('/api/admin/deposits', (req, res) => {
   const pending = WalletService.getPendingDeposits();
   res.json({ pending });

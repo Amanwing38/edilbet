@@ -8,10 +8,20 @@
       "language": "am",
       "role": "user",
       "createdAt": "2026-10-30T20:25:14.037Z"
+    },
+    "EB-741892": {
+      "id": "EB-741892",
+      "telegramId": 7742644071,
+      "username": "wingman6",
+      "firstName": "Aman",
+      "language": "am",
+      "role": "user",
+      "createdAt": "2026-10-30T20:31:25.542Z"
     }
   },
   "usersByTelegramId": {
-    "55443322": "EB-741891"
+    "55443322": "EB-741891",
+    "7742644071": "EB-741892"
   },
   "wallets": {
     "EB-741891": {
@@ -23,6 +33,16 @@
       "totalDeposited": 750,
       "totalWithdrawn": 0,
       "updatedAt": "2026-10-30T20:25:14.102Z"
+    },
+    "EB-741892": {
+      "userId": "EB-741892",
+      "currency": "ETB",
+      "availableBalance": 10090,
+      "bonusBalance": 0,
+      "wagerRemaining": 0,
+      "totalDeposited": 10100,
+      "totalWithdrawn": 200,
+      "updatedAt": "2026-10-30T20:48:21.894Z"
     }
   },
   "transactions": {
@@ -42,6 +62,102 @@
       "expiresAt": "2026-10-30T20:55:14.083Z",
       "referenceCode": "FT91914093",
       "settledAt": "2026-10-30T20:25:14.097Z",
+      "adminNote": "Customer submitted payment proof. Balance instantly credited."
+    },
+    "a17f5443-1840-490b-9ec1-128ffffc8b9d": {
+      "id": "a17f5443-1840-490b-9ec1-128ffffc8b9d",
+      "orderNumber": "ORD-311398",
+      "userId": "EB-741892",
+      "username": "wingman6",
+      "type": "DEPOSIT",
+      "amount": 100,
+      "fee": 0,
+      "paymentMethod": "TELEBIRR",
+      "senderPhone": "0938749239",
+      "recipientPhone": "0938749239",
+      "status": "REJECTED",
+      "createdAt": "2026-10-30T20:31:51.398Z",
+      "expiresAt": "2026-10-30T21:01:51.398Z",
+      "referenceCode": "UUU",
+      "settledAt": "2026-10-30T20:32:00.814Z",
+      "adminNote": "Rejected by Telegram Admin."
+    },
+    "d2f791af-1062-403c-8ab2-a6f8556ba491": {
+      "id": "d2f791af-1062-403c-8ab2-a6f8556ba491",
+      "orderNumber": "TX-191932",
+      "userId": "EB-741892",
+      "username": "Aviator Round #1101",
+      "type": "AVIATOR_BET",
+      "amount": -100,
+      "fee": 0,
+      "paymentMethod": "WALLET",
+      "status": "COMPLETED",
+      "createdAt": "2026-10-30T20:46:31.932Z",
+      "settledAt": "2026-10-30T20:46:31.932Z"
+    },
+    "6d0dd374-c9d4-4032-8b7e-b0eddd4a3266": {
+      "id": "6d0dd374-c9d4-4032-8b7e-b0eddd4a3266",
+      "orderNumber": "WIN-210694",
+      "userId": "EB-741892",
+      "username": "Aviator Cashout @ 3.4x",
+      "type": "AVIATOR_WIN",
+      "amount": 340,
+      "fee": 0,
+      "paymentMethod": "WALLET",
+      "status": "COMPLETED",
+      "createdAt": "2026-10-30T20:46:50.694Z",
+      "settledAt": "2026-10-30T20:46:50.694Z"
+    },
+    "162a2763-4fed-471b-88a0-9b320d3a77f7": {
+      "id": "162a2763-4fed-471b-88a0-9b320d3a77f7",
+      "orderNumber": "WD-255368",
+      "userId": "EB-741892",
+      "username": "wingman6",
+      "type": "WITHDRAWAL",
+      "amount": -200,
+      "fee": 50,
+      "paymentMethod": "TELEBIRR",
+      "recipientPhone": "0977814489",
+      "recipientAccount": "",
+      "accountHolderName": "",
+      "status": "REJECTED",
+      "createdAt": "2026-10-30T20:47:35.368Z",
+      "settledAt": "2026-10-30T20:47:46.715Z",
+      "adminNote": "Rejected by Telegram Admin."
+    },
+    "ab60fa84-a5a7-4598-9cb8-c0d051e2fd11": {
+      "id": "ab60fa84-a5a7-4598-9cb8-c0d051e2fd11",
+      "orderNumber": "WD-279711",
+      "userId": "EB-741892",
+      "username": "wingman6",
+      "type": "WITHDRAWAL",
+      "amount": -200,
+      "fee": 50,
+      "paymentMethod": "TELEBIRR",
+      "recipientPhone": "0977814489",
+      "recipientAccount": "",
+      "accountHolderName": "",
+      "status": "COMPLETED",
+      "createdAt": "2026-10-30T20:47:59.711Z",
+      "settledAt": "2026-10-30T20:48:05.709Z",
+      "adminNote": "Paid & dispatched by admin wingman6"
+    },
+    "230baea1-6127-4ef4-bd24-c1e88b76c8ff": {
+      "id": "230baea1-6127-4ef4-bd24-c1e88b76c8ff",
+      "orderNumber": "ORD-295782",
+      "userId": "EB-741892",
+      "username": "wingman6",
+      "type": "DEPOSIT",
+      "amount": 10000,
+      "fee": 0,
+      "paymentMethod": "CBE_BIRR",
+      "senderPhone": "0938749239",
+      "recipientAccount": "1000450457047",
+      "status": "COMPLETED",
+      "createdAt": "2026-10-30T20:48:15.782Z",
+      "expiresAt": "2026-10-30T21:18:15.782Z",
+      "referenceCode": "IIIII",
+      "settledAt": "2026-10-30T20:48:21.883Z",
       "adminNote": "Customer submitted payment proof. Balance instantly credited."
     }
   }
