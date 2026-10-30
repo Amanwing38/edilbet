@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Edil Bet (ዕድል ቤት) — Complete Telegram Mini App & Gaming Platform",
   "scripts": {
+    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install && npm --prefix server run build",
+    "start": "node server/dist/index.js",
     "server:install": "cd server && npm install",
     "client:install": "cd client && npm install",
     "install:all": "npm --prefix server install && npm --prefix client install",
