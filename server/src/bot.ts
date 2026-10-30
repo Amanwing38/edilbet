@@ -6,13 +6,19 @@ let botInstance: Bot | null = null;
 let currentWebAppHttpsUrl = process.env.WEBAPP_URL || 'https://edilbet.onrender.com';
 let socketEmitterCallback: ((userId: string, wallet: any) => void) | null = null;
 
+// Multi-admin notification set (includes operator DriveAddis & wingman6)
+const adminChatIds = new Set<number>([
+  8148611275, // DriveAddis
+  7742644071, // @wingman6 (Active Tester)
+  ...(process.env.ADMIN_CHAT_ID ? [Number(process.env.ADMIN_CHAT_ID)] : [])
+]);
+
 export function registerSocketEmitter(emitter: (userId: string, wallet: any) => void) {
   socketEmitterCallback = emitter;
 }
 
 export async function notifyAdminNewDeposit(order: any) {
   if (!botInstance) return;
-  const adminChatId = 8148611275;
   const keyboard = new InlineKeyboard()
     .text('✅ Approve (+ Credit)', `approve_dep:${order.id}`)
     .text('❌ Reject', `reject_dep:${order.id}`);
@@ -24,17 +30,18 @@ export async function notifyAdminNewDeposit(order: any) {
     `• **Amount**: **${order.amount} ETB**\n` +
     `• **Sender Phone**: \`${order.senderPhone}\`\n` +
     `• **Transaction ID / SMS**: \`${order.referenceCode}\`\n\n` +
-    `Tap Approve to instantly credit player's wallet:`;
+    `Tap Approve to credit player's wallet:`;
 
-  await botInstance.api.sendMessage(adminChatId, msg, {
-    parse_mode: 'Markdown',
-    reply_markup: keyboard
-  }).catch((e) => console.error('Error notifying admin of deposit:', e.message));
+  for (const chatId of adminChatIds) {
+    await botInstance.api.sendMessage(chatId, msg, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard
+    }).catch(() => {});
+  }
 }
 
 export async function notifyAdminNewWithdrawal(tx: any) {
   if (!botInstance) return;
-  const adminChatId = 8148611275;
   const keyboard = new InlineKeyboard()
     .text('✅ Paid / ተከፍሏል', `paid_with:${tx.id}`)
     .text('❌ Reject & Refund / መልስ', `reject_with:${tx.id}`);
@@ -62,10 +69,12 @@ export async function notifyAdminNewWithdrawal(tx: any) {
     `📉 **ከአካውንቱ የተቆረጠው ድምር (Total Deducted)**: **${totalDeducted.toFixed(2)} ETB**\n\n` +
     `እባክዎ ገንዘቡን ልከው ሲያጠናቅቁ ከታች "✅ ተከፍሏል" የሚለውን ይጫኑ:`;
 
-  await botInstance.api.sendMessage(adminChatId, msg, {
-    parse_mode: 'Markdown',
-    reply_markup: keyboard
-  }).catch((e) => console.error('Error notifying admin of withdrawal:', e.message));
+  for (const chatId of adminChatIds) {
+    await botInstance.api.sendMessage(chatId, msg, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard
+    }).catch(() => {});
+  }
 }
 
 export function updateBotWebAppUrl(url: string) {
