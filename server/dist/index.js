@@ -41,7 +41,7 @@ app.use(express_1.default.static(clientDistPath));
 const aviatorRoom = new aviatorRoom_js_1.AviatorRoom(io);
 aviatorRoom.start();
 // Launch Telegram Bot (@EdilBetET_bot)
-const BOT_TOKEN = process.env.BOT_TOKEN || '8891588751:AAGDl5JDnrmi5lhO8_56ap2ghzEGWwFACZI';
+const BOT_TOKEN = process.env.BOT_TOKEN || '8891588751:AAHMOttSv8O3K9i4X92t6-EcVYRJqMtcZe4';
 (0, bot_js_1.launchBot)(BOT_TOKEN);
 // Helper to get active user ID from request
 function getUserId(req) {

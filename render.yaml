@@ -7,6 +7,6 @@ services:
     dockerfilePath: ./Dockerfile
     envVars:
       - key: BOT_TOKEN
-        value: 8891588751:AAGDl5JDnrmi5lhO8_56ap2ghzEGWwFACZI
+        value: 8891588751:AAHMOttSv8O3K9i4X92t6-EcVYRJqMtcZe4
       - key: WEBAPP_URL
         sync: false
