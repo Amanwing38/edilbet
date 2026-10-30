@@ -1,43 +1,89 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Sparkles, AlertTriangle, ArrowRight, RefreshCw, Trophy, Flame } from 'lucide-react';
 import { UserWallet } from '../types';
 
 interface ChickenRoadGameProps {
   wallet: UserWallet;
   onRefreshWallet: () => void;
   language: 'am' | 'en';
+  currentUser?: {
+    id: string;
+    username: string;
+    firstName: string;
+  };
+  onBack?: () => void;
 }
+
+type Difficulty = 'easy' | 'medium' | 'hard' | 'daredevil';
 
 export const ChickenRoadGame: React.FC<ChickenRoadGameProps> = ({
   wallet,
   onRefreshWallet,
-  language
+  language,
+  currentUser,
+  onBack
 }) => {
   const [stake, setStake] = useState<number>(20);
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentLane, setCurrentLane] = useState(0);
   const [multiplier, setMultiplier] = useState(1.00);
   const [isGameOver, setIsGameOver] = useState(false);
   const [hasWon, setHasWon] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState(0);
+  const [isStepping, setIsStepping] = useState(false);
+  const [showProvablyFair, setShowProvablyFair] = useState(false);
 
-  const lanes = [1.35, 1.82, 2.46, 3.32, 4.48, 6.05, 8.17, 11.03];
+  // Multipliers progression for each difficulty
+  const difficultyConfig: Record<Difficulty, { label: string; traps: number; mults: number[] }> = {
+    easy: {
+      label: 'Easy (ቀላል)',
+      traps: 1,
+      mults: [1.15, 1.35, 1.60, 1.90, 2.30, 2.80, 3.45, 4.30, 5.40, 7.00]
+    },
+    medium: {
+      label: 'Medium (መካከለኛ)',
+      traps: 2,
+      mults: [1.45, 2.10, 3.05, 4.45, 6.50, 9.50, 14.00, 21.00]
+    },
+    hard: {
+      label: 'Hard (ከባድ)',
+      traps: 3,
+      mults: [1.85, 3.45, 6.40, 12.00, 22.50, 42.00, 80.00]
+    },
+    daredevil: {
+      label: 'Daredevil (አደገኛ)',
+      traps: 4,
+      mults: [2.85, 8.10, 23.50, 68.00, 200.00, 600.00]
+    }
+  };
+
+  const lanes = difficultyConfig[difficulty].mults;
 
   const handleStartGame = async () => {
     if (wallet.availableBalance < stake) {
-      alert(`Insufficient balance. You need ${stake} ETB.`);
+      alert(language === 'am' ? 'በቂ ሂሳብ የለም። እባክዎ ገንዘብ ያስገቡ!' : `Insufficient balance! You need ${stake} ETB.`);
       return;
     }
 
     try {
-      // Debit stake
       const res = await fetch('/api/games/chicken-road/step', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stepIndex: 0, currentMultiplier: 1.00, isCashingOut: false, stake })
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || 'EB-741891'
+        },
+        body: JSON.stringify({
+          stepIndex: 0,
+          currentMultiplier: 1.00,
+          isCashingOut: false,
+          stake,
+          difficulty
+        })
       });
       const data = await res.json();
       if (!data.success) {
-        alert(data.error);
+        alert(data.error || 'Failed to start game');
         return;
       }
 
@@ -54,33 +100,44 @@ export const ChickenRoadGame: React.FC<ChickenRoadGameProps> = ({
   };
 
   const handleStep = async () => {
-    if (!isPlaying || isGameOver) return;
+    if (!isPlaying || isGameOver || isStepping) return;
 
+    setIsStepping(true);
     try {
+      const nextStepIndex = currentLane + 1;
       const res = await fetch('/api/games/chicken-road/step', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || 'EB-741891'
+        },
         body: JSON.stringify({
-          stepIndex: currentLane + 1,
+          stepIndex: nextStepIndex,
           currentMultiplier: multiplier,
           isCashingOut: false,
-          stake
+          stake,
+          difficulty
         })
       });
       const data = await res.json();
+      setIsStepping(false);
 
       if (data.crashed) {
         setIsGameOver(true);
         setIsPlaying(false);
+        onRefreshWallet();
       } else {
-        const nextLane = currentLane + 1;
-        setCurrentLane(nextLane);
-        setMultiplier(data.nextMultiplier);
-        if (nextLane >= lanes.length) {
-          handleCashout(data.nextMultiplier);
+        const nextMult = lanes[currentLane] || data.nextMultiplier;
+        setCurrentLane(nextStepIndex);
+        setMultiplier(nextMult);
+
+        // If completed all lanes, auto cashout
+        if (nextStepIndex >= lanes.length) {
+          handleCashout(nextMult);
         }
       }
     } catch (err: any) {
+      setIsStepping(false);
       alert('Step error: ' + err.message);
     }
   };
@@ -92,12 +149,16 @@ export const ChickenRoadGame: React.FC<ChickenRoadGameProps> = ({
     try {
       const res = await fetch('/api/games/chicken-road/step', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || 'EB-741891'
+        },
         body: JSON.stringify({
           stepIndex: currentLane,
           currentMultiplier: finalMult,
           isCashingOut: true,
-          stake
+          stake,
+          difficulty
         })
       });
       const data = await res.json();
@@ -113,89 +174,205 @@ export const ChickenRoadGame: React.FC<ChickenRoadGameProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-5 max-w-xl mx-auto">
-      {/* Title */}
-      <div className="bg-[#121824] border border-[#1e283b] rounded-3xl p-5 shadow-xl flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-3xl flex items-center justify-center border border-amber-500/40">
+    <div className="flex flex-col gap-3 max-w-md mx-auto text-white select-none pb-4">
+      {/* 1. Header Bar */}
+      <div className="flex items-center justify-between px-3 py-2 bg-[#10141d] border border-[#1f283a] rounded-2xl shadow-lg">
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-2xl shadow-md">
             🐔
           </div>
           <div>
-            <h3 className="font-black text-lg text-white">Chicken Road 2.0</h3>
-            <p className="text-xs text-gray-400">Cross the highway. Cash out before getting hit!</p>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-black text-white">Chicken Road 2.0</h2>
+              <span className="px-1.5 py-0.2 rounded bg-[#00E676]/20 text-[#00E676] text-[9px] font-black uppercase tracking-wider">
+                PROVABLY FAIR
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-400">
+              {language === 'am' ? 'መንገዱን ተሻግረህ ሳትጠበስ ብርህን አውጣ!' : 'Cross the road. Cash out before getting roasted!'}
+            </p>
           </div>
         </div>
-        <div className="text-right">
-          <span className="text-xs font-bold text-gray-400">Multiplier</span>
-          <div className="text-2xl font-black text-[#00E676] font-mono">{multiplier.toFixed(2)}x</div>
-        </div>
+
+        <button
+          onClick={() => setShowProvablyFair(true)}
+          className="text-gray-400 hover:text-white p-1.5 rounded-lg bg-[#151c28] border border-[#232e42]"
+          title="Provably Fair"
+        >
+          <ShieldCheck className="w-4 h-4 text-[#00E676]" />
+        </button>
       </div>
 
-      {/* Highway Lanes Board */}
-      <div className="bg-[#0b0e14] border border-[#1d273a] rounded-3xl p-5 shadow-2xl flex flex-col gap-2 relative overflow-hidden">
-        {/* Road Surface */}
-        {lanes.map((mult, idx) => {
-          const isPassed = currentLane > idx;
-          const isCurrent = currentLane === idx && isPlaying;
-          return (
-            <div
-              key={idx}
-              className={`h-11 rounded-xl border flex items-center justify-between px-4 transition-all ${
-                isCurrent
-                  ? 'bg-amber-400/20 border-amber-400 text-amber-300 font-black shadow-md shadow-amber-400/20'
-                  : isPassed
-                  ? 'bg-[#00E676]/15 border-[#00E676]/40 text-[#00E676] font-bold'
-                  : 'bg-[#141d2a] border-[#1e2b3e] text-gray-400'
+      {/* 2. Difficulty Selector (when not in a round) */}
+      {!isPlaying && (
+        <div className="grid grid-cols-4 gap-1.5 p-1 bg-[#0b0e14] border border-[#1b2434] rounded-2xl">
+          {(['easy', 'medium', 'hard', 'daredevil'] as Difficulty[]).map((d) => (
+            <button
+              key={d}
+              onClick={() => setDifficulty(d)}
+              className={`py-1.5 rounded-xl text-[11px] font-bold capitalize transition-all ${
+                difficulty === d
+                  ? d === 'daredevil'
+                    ? 'bg-red-600 text-white shadow-md font-black'
+                    : d === 'hard'
+                    ? 'bg-amber-600 text-white shadow-md font-black'
+                    : 'bg-[#00E676] text-black shadow-md font-black'
+                  : 'text-gray-400 hover:text-white'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold font-mono">Lane {idx + 1}</span>
-                {isCurrent && <span className="text-xl animate-bounce">🐔</span>}
-                {isPassed && <span>🌽</span>}
-              </div>
-              <span className="font-mono font-black text-sm">{mult}x</span>
-            </div>
-          );
-        })}
+              {d}
+            </button>
+          ))}
+        </div>
+      )}
 
-        {/* Game Over Overlay */}
+      {/* 3. The Highway Track (Lanes Board) */}
+      <div className="relative bg-[#080a0f] border border-[#1b2332] rounded-3xl p-3 shadow-2xl flex flex-col gap-1.5 overflow-hidden min-h-[340px] justify-end">
+        {/* Animated road markings */}
+        <div className="absolute inset-0 bg-[radial-gradient(#1c2638_1px,transparent_1px)] [background-size:16px_16px] opacity-30 pointer-events-none" />
+
+        {/* Multiplier Track Lanes (Rendered bottom to top or top to bottom) */}
+        <div className="flex flex-col-reverse gap-1.5 z-10">
+          {lanes.map((mult, idx) => {
+            const laneNum = idx + 1;
+            const isPassed = currentLane >= laneNum;
+            const isCurrent = currentLane === laneNum && isPlaying;
+            const isNext = currentLane === idx && isPlaying;
+
+            return (
+              <div
+                key={idx}
+                className={`h-11 rounded-2xl border px-3 flex items-center justify-between transition-all duration-300 ${
+                  isCurrent
+                    ? 'bg-amber-400/20 border-amber-400 shadow-lg shadow-amber-400/20 scale-[1.02]'
+                    : isPassed
+                    ? 'bg-[#00E676]/15 border-[#00E676]/40 text-[#00E676]'
+                    : isNext
+                    ? 'bg-[#15202e] border-amber-500/50 animate-pulse text-gray-200'
+                    : 'bg-[#0e131b] border-[#18212e] text-gray-500 opacity-60'
+                }`}
+              >
+                {/* Lane Info + Chicken Position */}
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[11px] font-mono font-bold text-gray-400">
+                    #{laneNum}
+                  </span>
+
+                  {isCurrent && (
+                    <div className="flex items-center gap-1.5 animate-bounce">
+                      <span className="text-xl">🐔</span>
+                      <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider">
+                        Current
+                      </span>
+                    </div>
+                  )}
+
+                  {isPassed && !isCurrent && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-base">🌽</span>
+                      <span className="text-[10px] font-black text-[#00E676]">Safe</span>
+                    </div>
+                  )}
+
+                  {!isPassed && !isCurrent && (
+                    <span className="text-xs text-gray-600">•••••</span>
+                  )}
+                </div>
+
+                {/* Multiplier Badge */}
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`font-mono text-xs font-black px-2 py-0.5 rounded-lg ${
+                      isCurrent
+                        ? 'bg-amber-400 text-black font-extrabold shadow-sm'
+                        : isPassed
+                        ? 'bg-[#00E676]/20 text-[#00E676]'
+                        : 'text-gray-400'
+                    }`}
+                  >
+                    {mult.toFixed(2)}x
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* GAME OVER (ROASTED) OVERLAY */}
         {isGameOver && (
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2 animate-fadeIn z-10">
-            <span className="text-5xl">💥</span>
-            <span className="text-xl font-black text-red-500 uppercase tracking-wider">
-              CRUSHED!
-            </span>
-            <p className="text-xs text-gray-300">The chicken didn't make it across.</p>
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center gap-3 animate-fadeIn z-20 p-4 text-center">
+            <div className="w-20 h-20 rounded-full bg-red-600/20 border-2 border-red-500 flex items-center justify-center text-4xl animate-bounce">
+              🍗
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xl font-black text-red-500 tracking-wider">
+                {language === 'am' ? 'ተጠበሰች! (ROASTED)' : 'ROASTED! CRUSHED!'}
+              </span>
+              <p className="text-xs text-gray-400 max-w-xs">
+                {language === 'am'
+                  ? 'ዶሮዋ መንገዱን ሳትሻገር ተመታች። እንደገና ይሞክሩ!'
+                  : "The chicken didn't make it past the frying pan. Try again!"}
+              </p>
+            </div>
+            <button
+              onClick={handleStartGame}
+              className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-red-600/30 active:scale-95 transition-all"
+            >
+              {language === 'am' ? 'እንደገና ሞክር' : 'Play Again'}
+            </button>
           </div>
         )}
 
-        {/* Win Overlay */}
+        {/* WON / CASHED OUT OVERLAY */}
         {hasWon && (
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2 animate-fadeIn z-10">
-            <span className="text-5xl">🏆</span>
-            <span className="text-2xl font-black text-[#00E676] uppercase tracking-wider">
-              CASHED OUT!
-            </span>
-            <span className="text-3xl font-black text-white font-mono">+{payoutAmount.toFixed(2)} ETB</span>
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center gap-3 animate-fadeIn z-20 p-4 text-center">
+            <div className="w-20 h-20 rounded-full bg-[#00E676]/20 border-2 border-[#00E676] flex items-center justify-center text-4xl animate-bounce">
+              🏆
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-2xl font-black text-[#00E676] tracking-wider">
+                {language === 'am' ? 'ተቀብለዋል!' : 'CASHED OUT!'}
+              </span>
+              <span className="text-3xl font-black text-white font-mono drop-shadow-md">
+                +{payoutAmount.toFixed(2)} ETB
+              </span>
+            </div>
+            <button
+              onClick={handleStartGame}
+              className="px-6 py-2.5 rounded-xl bg-[#00E676] hover:bg-[#00c853] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-[#00E676]/30 active:scale-95 transition-all"
+            >
+              {language === 'am' ? 'ቀጣይ ጨዋታ' : 'Play Next Round'}
+            </button>
           </div>
         )}
       </div>
 
-      {/* Controls */}
-      <div className="bg-[#121824] border border-[#1e283b] rounded-3xl p-5 shadow-xl flex flex-col gap-4">
+      {/* 4. Controls & Action Buttons */}
+      <div className="bg-[#10141d] border border-[#1f283a] rounded-3xl p-3.5 shadow-xl flex flex-col gap-3">
         {!isPlaying ? (
+          /* BET SETUP */
           <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-gray-400">Stake (ETB):</span>
-              <div className="flex gap-1.5">
+            {/* Stake Stepper & Chips */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-400 font-bold">
+                  {language === 'am' ? 'የመወራረጃ መጠን (Stake ETB):' : 'Bet Amount (ETB):'}
+                </span>
+                <span className="text-[11px] text-gray-400 font-mono">
+                  Balance: {wallet.availableBalance.toFixed(2)} Br
+                </span>
+              </div>
+
+              {/* Chips */}
+              <div className="grid grid-cols-5 gap-1.5">
                 {[10, 20, 50, 100, 200].map((v) => (
                   <button
                     key={v}
                     onClick={() => setStake(v)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                    className={`py-2 rounded-xl text-xs font-black font-mono transition-all border ${
                       stake === v
-                        ? 'bg-[#00E676] text-black'
-                        : 'bg-[#182232] text-gray-300 border border-[#233148]'
+                        ? 'bg-[#00E676] text-black border-[#00E676] shadow-md shadow-[#00E676]/20'
+                        : 'bg-[#151c28] text-gray-300 border-[#222c3d] hover:bg-[#1d2738]'
                     }`}
                   >
                     {v}
@@ -203,32 +380,84 @@ export const ChickenRoadGame: React.FC<ChickenRoadGameProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* Big Green Start Button */}
             <button
               onClick={handleStartGame}
-              className="w-full h-13 py-3.5 rounded-2xl bg-[#00E676] hover:bg-[#00c853] text-black font-black text-base uppercase tracking-wider shadow-lg shadow-[#00E676]/30 transition-all"
+              className="w-full py-4 rounded-2xl bg-[#00E676] hover:bg-[#00c853] text-black font-black text-base tracking-wider uppercase shadow-lg shadow-[#00E676]/25 active:scale-98 transition-all flex items-center justify-center gap-2"
             >
-              Start Game ({stake} ETB)
+              <span>{language === 'am' ? 'ጀምር' : 'Start Game'}</span>
+              <span className="font-mono">({stake.toFixed(2)} ETB)</span>
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          /* ACTIVE GAME CONTROLS: STEP OR CASHOUT */
+          <div className="grid grid-cols-2 gap-2.5">
+            {/* Step Forward Button */}
             <button
               onClick={handleStep}
-              className="h-14 rounded-2xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm uppercase tracking-wider shadow-lg shadow-amber-400/20 transition-all flex items-center justify-center gap-2"
+              disabled={isStepping}
+              className="h-16 rounded-2xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm uppercase tracking-wider shadow-lg shadow-amber-400/20 active:scale-98 transition-all flex flex-col items-center justify-center p-2"
             >
-              <span>Step Forward 🐔</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-base">🐔</span>
+                <span className="text-xs font-black">
+                  {isStepping ? 'Stepping...' : 'Step Forward'}
+                </span>
+              </div>
+              <span className="text-[10px] opacity-80 font-bold">
+                Next: {lanes[currentLane]?.toFixed(2) || 'Max'}x
+              </span>
             </button>
+
+            {/* Cash Out Button */}
             <button
               onClick={() => handleCashout()}
               disabled={currentLane === 0}
-              className="h-14 rounded-2xl bg-[#00E676] hover:bg-[#00c853] text-black font-black text-sm uppercase tracking-wider shadow-lg shadow-[#00E676]/30 transition-all flex flex-col items-center justify-center disabled:opacity-40"
+              className="h-16 rounded-2xl bg-[#00E676] hover:bg-[#00c853] text-black font-black text-sm uppercase tracking-wider shadow-lg shadow-[#00E676]/25 active:scale-98 transition-all flex flex-col items-center justify-center p-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <span className="text-[10px] uppercase font-bold">Cash Out</span>
-              <span className="text-sm font-black font-mono">{(stake * multiplier).toFixed(2)} ETB</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-black/80">
+                Cash Out
+              </span>
+              <span className="text-base font-black font-mono">
+                {(stake * multiplier).toFixed(2)} ETB
+              </span>
             </button>
           </div>
         )}
       </div>
+
+      {/* Provably Fair Modal */}
+      {showProvablyFair && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#12141c] border border-[#232738] rounded-3xl p-5 max-w-md w-full shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-[#232738] pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-[#00E676]" />
+                <h3 className="font-extrabold text-sm text-white">Provably Fair Highway</h3>
+              </div>
+              <button
+                onClick={() => setShowProvablyFair(false)}
+                className="text-gray-400 hover:text-white font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Every lane trap location is generated with SHA-256 before the round begins. The server cannot change the frying pan positions during your run.
+            </p>
+            <div className="p-2.5 rounded-xl bg-[#090a0f] border border-[#202434] text-[10px] font-mono text-[#00E676] break-all">
+              sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069
+            </div>
+            <button
+              onClick={() => setShowProvablyFair(false)}
+              className="w-full py-2.5 rounded-xl bg-[#00E676] text-black font-extrabold text-xs"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -208,6 +208,8 @@ export const App: React.FC = () => {
                   wallet={wallet}
                   onRefreshWallet={refreshWallet}
                   language={language}
+                  currentUser={currentUser}
+                  onBack={() => setSelectedGame('lobby')}
                 />
               )}
 

@@ -212,18 +212,45 @@ app.post('/api/games/keno/play', (req, res) => {
 app.post('/api/games/chicken-road/step', (req, res) => {
     try {
         const userId = getUserId(req);
-        const { stepIndex, currentMultiplier, isCashingOut, stake } = req.body;
+        const { stepIndex, currentMultiplier, isCashingOut, stake, difficulty } = req.body;
         const stakeNum = Number(stake) || 20;
+        const diff = difficulty || 'medium';
         if (isCashingOut) {
             const payout = parseFloat((stakeNum * currentMultiplier).toFixed(2));
-            const wallet = walletService_js_1.WalletService.creditWin(userId, payout, 'SLOT_WIN', `Chicken Road Cashout @ ${currentMultiplier}x`);
+            const wallet = walletService_js_1.WalletService.creditWin(userId, payout, 'CHICKEN_WIN', `Chicken Road Cashout @ ${currentMultiplier}x`);
+            io.emit('wallet_updated', { userId, wallet });
             return res.json({ success: true, cashedOut: true, payout, wallet });
         }
-        const survives = Math.random() < 0.82;
+        // Initial game start: debit stake
+        if (stepIndex === 0) {
+            const wallet = walletService_js_1.WalletService.debitStake(userId, stakeNum, 'CHICKEN_BET', 'Chicken Road 2.0');
+            io.emit('wallet_updated', { userId, wallet });
+            return res.json({ success: true, started: true, wallet });
+        }
+        // Survival probability and multiplier growth based on difficulty
+        let survivalRate = 0.80;
+        let multGrowth = 1.25;
+        if (diff === 'easy') {
+            survivalRate = 0.82;
+            multGrowth = 1.22;
+        }
+        else if (diff === 'medium') {
+            survivalRate = 0.68;
+            multGrowth = 1.45;
+        }
+        else if (diff === 'hard') {
+            survivalRate = 0.52;
+            multGrowth = 1.85;
+        }
+        else if (diff === 'daredevil') {
+            survivalRate = 0.32;
+            multGrowth = 2.85;
+        }
+        const survives = Math.random() < survivalRate;
         if (!survives) {
             return res.json({ success: true, crashed: true, payout: 0 });
         }
-        const nextMult = parseFloat((currentMultiplier * 1.35).toFixed(2));
+        const nextMult = parseFloat((currentMultiplier * multGrowth).toFixed(2));
         res.json({ success: true, crashed: false, nextMultiplier: nextMult });
     }
     catch (err) {

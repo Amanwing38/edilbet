@@ -31,6 +31,8 @@ export type TransactionType =
   | 'KENO_WIN'
   | 'SLOT_BET'
   | 'SLOT_WIN'
+  | 'CHICKEN_BET'
+  | 'CHICKEN_WIN'
   | 'MONEY_RAIN'
   | 'CASHBACK'
   | 'BONUS'
