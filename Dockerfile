@@ -26,7 +26,7 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=10000
 
 # Copy built artifacts and runtime dependencies
 COPY package.json ./
@@ -36,6 +36,7 @@ COPY --from=builder /app/server/package.json ./server/package.json
 
 RUN cd server && npm install --omit=dev
 
+EXPOSE 10000
 EXPOSE 3001
 
 CMD ["node", "server/dist/index.js"]

@@ -396,8 +396,8 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(clientDistPath, 'index.html'));
 });
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+const PORT = Number(process.env.PORT) || 3001;
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`=======================================================`);
   console.log(`🚀 Edil Bet (ዕድል ቤት) Server running on port ${PORT}`);
   console.log(`✈️ Aviator Real-Time Engine Active`);
