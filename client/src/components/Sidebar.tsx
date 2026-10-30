@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gamepad2, Ticket, Gift, Wallet, Users, User } from 'lucide-react';
+import { Compass, Ticket, Gift, Wallet, Users, User } from 'lucide-react';
 
 export type NavTab = 'games' | 'raffle' | 'promotions' | 'wallet' | 'affiliate' | 'profile';
 
@@ -11,18 +11,18 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, language }) => {
   const menuItems: { id: NavTab; labelEn: string; labelAm: string; icon: React.ReactNode }[] = [
-    { id: 'games', labelEn: 'Games', labelAm: 'ጨዋታዎች', icon: <Gamepad2 className="w-5 h-5" /> },
-    { id: 'raffle', labelEn: 'Raffle', labelAm: 'ዕጣ / ሎተሪ', icon: <Ticket className="w-5 h-5" /> },
-    { id: 'promotions', labelEn: 'Promotions', labelAm: 'ቦነሶች', icon: <Gift className="w-5 h-5" /> },
-    { id: 'wallet', labelEn: 'Wallet', labelAm: 'ዋሌት', icon: <Wallet className="w-5 h-5" /> },
-    { id: 'affiliate', labelEn: 'Affiliate', labelAm: 'አጋርነት', icon: <Users className="w-5 h-5" /> },
-    { id: 'profile', labelEn: 'Profile', labelAm: 'መገለጫ', icon: <User className="w-5 h-5" /> }
+    { id: 'games', labelEn: 'Games', labelAm: 'Games', icon: <Compass className="w-5 h-5" /> },
+    { id: 'raffle', labelEn: 'Raffle', labelAm: 'Raffle', icon: <Ticket className="w-5 h-5" /> },
+    { id: 'promotions', labelEn: 'Promotions', labelAm: 'Promotions', icon: <Gift className="w-5 h-5" /> },
+    { id: 'wallet', labelEn: 'Wallet', labelAm: 'Wallet', icon: <Wallet className="w-5 h-5" /> },
+    { id: 'affiliate', labelEn: 'Affiliate', labelAm: 'Affiliate', icon: <Users className="w-5 h-5" /> },
+    { id: 'profile', labelEn: 'Profile', labelAm: 'Profile', icon: <User className="w-5 h-5" /> }
   ];
 
   return (
     <>
       {/* Desktop & Tablet Sidebar */}
-      <aside className="hidden md:flex flex-col w-56 bg-[#0f141c] border-r border-[#1a2333] p-4 shrink-0 min-h-[calc(100vh-61px)]">
+      <aside className="hidden md:flex flex-col w-56 bg-[#0c1117] border-r border-[#1a2333] p-4 shrink-0 min-h-[calc(100vh-61px)]">
         <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-3">
           MENU
         </span>
@@ -42,7 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, langua
                 <span className={isActive ? 'text-black' : 'text-gray-400'}>
                   {item.icon}
                 </span>
-                <span>{language === 'am' ? item.labelAm : item.labelEn}</span>
+                <span>{item.labelEn}</span>
               </button>
             );
           })}
@@ -71,23 +71,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, langua
         </div>
       </aside>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0f141c]/95 backdrop-blur-md border-t border-[#1e2638] flex items-center justify-around py-2 px-1">
+      {/* Mobile Bottom Navigation Bar (Pixel-Matched to Screenshot) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0c1117]/98 backdrop-blur-lg border-t border-[#1b2332] grid grid-cols-6 items-stretch h-14">
         {menuItems.map((item) => {
           const isActive = activeTab === item.id;
           return (
             <button
               key={item.id}
               onClick={() => onSelectTab(item.id)}
-              className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition-all ${
-                isActive ? 'text-[#00E676]' : 'text-gray-400 hover:text-gray-200'
+              className={`flex flex-col items-center justify-center gap-0.5 transition-all h-full ${
+                isActive
+                  ? 'bg-[#00E676] text-black font-black'
+                  : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              <div className={`p-1 rounded-lg ${isActive ? 'bg-[#00E676]/15' : ''}`}>
-                {item.icon}
-              </div>
-              <span className="text-[10px] font-bold tracking-tight">
-                {language === 'am' ? item.labelAm : item.labelEn}
+              <div>{item.icon}</div>
+              <span className={`text-[10px] ${isActive ? 'font-black' : 'font-semibold'}`}>
+                {item.labelEn}
               </span>
             </button>
           );

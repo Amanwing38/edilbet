@@ -36,6 +36,14 @@ class UserService {
         const wallet = walletService_js_1.WalletService.getOrCreateWallet(user.id);
         return { user, wallet, isNew };
     }
+    static updateUserPhone(telegramId, phoneNumber) {
+        const user = this.usersByTelegramId.get(telegramId);
+        if (user) {
+            user.phoneNumber = phoneNumber;
+            return user;
+        }
+        return undefined;
+    }
     static getUserById(id) {
         return this.usersById.get(id);
     }

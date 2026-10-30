@@ -4,6 +4,7 @@ exports.updateBotWebAppUrl = updateBotWebAppUrl;
 exports.launchBot = launchBot;
 const grammy_1 = require("grammy");
 const userService_js_1 = require("./services/userService.js");
+const walletService_js_1 = require("./services/walletService.js");
 let botInstance = null;
 let currentWebAppHttpsUrl = process.env.WEBAPP_URL || 'https://edilbet.onrender.com';
 function updateBotWebAppUrl(url) {
@@ -44,7 +45,7 @@ function launchBot(token, initialUrl) {
         }).catch((err) => {
             console.error('Menu button error:', err.message);
         });
-        // /start command — Automatically creates unique Account ID & personal wallet!
+        // /start command — Automatically creates unique Account ID & requests phone verification
         bot.command('start', async (ctx) => {
             const from = ctx.from;
             if (!from)
@@ -57,18 +58,34 @@ function launchBot(token, initialUrl) {
                 firstName: from.first_name,
                 referredBy: refParam ? String(refParam) : undefined
             });
-            // App URL passing user telegram ID so the web app logs in automatically
             const personalizedAppUrl = `${currentWebAppHttpsUrl}?tgId=${from.id}&name=${encodeURIComponent(from.first_name || 'Player')}&v=2`;
+            // If user hasn't shared their phone number yet, request it
+            if (!user.phoneNumber) {
+                const phoneKeyboard = new grammy_1.Keyboard()
+                    .requestContact('📱 ስልክ ቁጥርዎን ያጋሩ (Share Phone Number)')
+                    .resized()
+                    .oneTime();
+                await ctx.reply(`🇪🇹 **እንኳን ወደ ዕድል ቤት (Edil Bet) በደህና መጡ!**\n\n` +
+                    `👤 **የአካውንት መለያዎ (Account ID)**: \`${user.id}\`\n\n` +
+                    `አካውንትዎን ለማረጋገጥ እና የቴሌብር (Telebirr) ፈጣን ተቀማጭ/ማውጣት ለማገናኘት እባክዎ ከታች ያለውን **"📱 ስልክ ቁጥርዎን ያጋሩ"** የሚለውን በተን ይጫኑ:\n\n` +
+                    `*(To activate your account and enable Telebirr cashier, tap the "Share Phone Number" button below:)*`, {
+                    parse_mode: 'Markdown',
+                    reply_markup: phoneKeyboard
+                });
+                return;
+            }
+            // If already verified, send full welcome with play button
             const keyboard = new grammy_1.InlineKeyboard()
-                .webApp('✈️ Play Aviator (ዕድል ቤት)', personalizedAppUrl)
+                .webApp('🎮 Play Games (ዕድል ቤት)', personalizedAppUrl)
                 .row()
                 .url('📢 Official Channel', 'https://t.me/EdilBetET')
                 .url('💬 24/7 Support', 'https://t.me/EdilBetSupport');
             const welcomeText = `🇪🇹 **እንኳን ወደ ዕድል ቤት (Edil Bet) በደህና መጡ!**
 **Welcome to Edil Bet — Ethiopia's Premier Instant Games Platform!**
 
-👤 **የእርስዎ አካውንት ተፈጥሯል (Your Official Account):**
+👤 **የእርስዎ አካውንት (Your Official Account):**
 • 🆔 **Account ID**: \`${user.id}\`
+• 📱 **ስልክ (Phone)**: \`${user.phoneNumber}\`
 • 👤 **Player**: **${user.firstName}** ${user.username ? '(@' + user.username + ')' : ''}
 • 💰 **Available Balance**: **${wallet.availableBalance.toFixed(2)} ETB**
 • 🎁 **Welcome Bonus**: **100% Match on First Deposit!**
@@ -84,10 +101,38 @@ function launchBot(token, initialUrl) {
 💰 **Instant Deposits via Telebirr (0938749239)**
 ⚡ **Fast Withdrawals directly to your Telebirr account**
 
-👇 **Tap below to launch Aviator with your account:**`;
+👇 **Tap below to open the games lobby:**`;
             await ctx.reply(welcomeText, {
                 parse_mode: 'Markdown',
                 reply_markup: keyboard
+            });
+        });
+        // Handle Contact Sharing from Telegram Button
+        bot.on('message:contact', async (ctx) => {
+            const from = ctx.from;
+            const contact = ctx.message.contact;
+            if (!from || !contact)
+                return;
+            const rawPhone = contact.phone_number;
+            const cleanPhone = rawPhone.startsWith('+') ? rawPhone : `+${rawPhone}`;
+            console.log(`📱 User ${from.id} shared phone number: ${cleanPhone}`);
+            const user = userService_js_1.UserService.updateUserPhone(from.id, cleanPhone);
+            const wallet = walletService_js_1.WalletService.getOrCreateWallet(user?.id || 'EB-741891');
+            const personalizedAppUrl = `${currentWebAppHttpsUrl}?tgId=${from.id}&name=${encodeURIComponent(from.first_name || 'Player')}&v=2`;
+            const inlineKeyboard = new grammy_1.InlineKeyboard()
+                .webApp('🎮 Play Games (ዕድል ቤት)', personalizedAppUrl)
+                .row()
+                .url('📢 Official Channel', 'https://t.me/EdilBetET')
+                .url('💬 24/7 Support', 'https://t.me/EdilBetSupport');
+            await ctx.reply(`✅ **ስልክ ቁጥርዎ በተሳካ ሁኔታ ተረጋግጧል!**\n\n` +
+                `👤 **የእርስዎ አካውንት (Your Verified Account):**\n` +
+                `• 🆔 **Account ID**: \`${user?.id || 'EB-741891'}\`\n` +
+                `• 📱 **ስልክ (Phone)**: \`${cleanPhone}\`\n` +
+                `• 💰 **Available Balance**: **${wallet.availableBalance.toFixed(2)} ETB**\n` +
+                `• 🎁 **Welcome Bonus**: **100% Match on First Deposit!**\n\n` +
+                `👇 **ጨዋታዎችን ለመጀመር ከታች ያለውን ይጫኑ (Tap below to play):**`, {
+                parse_mode: 'Markdown',
+                reply_markup: inlineKeyboard
             });
         });
         // Handle any message to immediately send launch button

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, PlusCircle, ShieldAlert, Globe } from 'lucide-react';
+import { Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { UserWallet } from '../types';
 
 interface HeaderProps {
@@ -19,92 +19,60 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAdmin,
   pendingDepositsCount,
   language,
-  onToggleLanguage,
   userId,
   userName
 }) => {
   const [showBalance, setShowBalance] = useState(true);
 
   return (
-    <header className="sticky top-0 z-40 bg-[#0f141c]/95 backdrop-blur-md border-b border-[#1e2638] px-3 sm:px-4 py-2.5 flex items-center justify-between">
-      {/* Brand Logo & Tagline */}
-      <div className="flex items-center gap-2.5 sm:gap-3">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-[#00c853] to-[#00E676] flex items-center justify-center font-black text-black text-xl shadow-lg shadow-[#00E676]/20">
-          ዕ
+    <header className="sticky top-0 z-40 bg-[#0c1117] border-b border-[#1b2332] px-3 sm:px-4 py-2.5 flex items-center justify-between">
+      {/* Left: Brand Logo & Title (Matching Mela Bet / Edil Bet) */}
+      <div className="flex items-center gap-2 cursor-pointer">
+        <div className="w-9 h-9 rounded-xl bg-[#141d28] border border-[#233348] flex items-center justify-center shadow-md">
+          <span className="text-[#00E676] font-black text-sm tracking-tighter">
+            EB
+          </span>
         </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-base sm:text-lg font-extrabold tracking-wide text-white">
-              {language === 'am' ? 'ዕድል ቤት' : 'Edil Bet'}
-            </h1>
-            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-[#00E676]/20 text-[#00E676] border border-[#00E676]/30">
-              ET
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {userId && (
-              <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.2 rounded border border-amber-400/20">
-                {userId}
-              </span>
-            )}
-            <p className="text-[10px] text-gray-400 font-medium truncate max-w-[120px] sm:max-w-none">
-              {userName || (language === 'am' ? 'የእርስዎ ዕድል፣ የእርስዎ ድል' : 'Your chance, your number')}
-            </p>
-          </div>
+        <div className="flex flex-col">
+          <h1 className="text-base font-black tracking-tight text-[#00E676]">
+            Edil Bet
+          </h1>
         </div>
       </div>
 
-      {/* Right Controls: Balance, Language, Deposit, Admin */}
-      <div className="flex items-center gap-2.5">
-        {/* Language Toggle */}
-        <button
-          onClick={onToggleLanguage}
-          className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#161d29] hover:bg-[#1e2638] border border-[#232e42] text-xs font-semibold text-gray-300 transition-all"
-          title="Switch Language (English / አማርኛ)"
-        >
-          <Globe className="w-3.5 h-3.5 text-[#00E676]" />
-          <span>{language === 'am' ? 'EN' : 'አማ'}</span>
-        </button>
-
-        {/* Admin Cashier Console Button */}
-        <button
-          onClick={onOpenAdmin}
-          className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#1a2333] hover:bg-[#222e44] border border-[#2d3d5a] text-xs font-bold text-amber-400 transition-all shadow-sm"
-          title="Open Cashier Console (Approve Telebirr Deposits)"
-        >
-          <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
-          <span className="hidden md:inline">Cashier</span>
-          {pendingDepositsCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-[10px] font-black text-white flex items-center justify-center animate-pulse">
-              {pendingDepositsCount}
-            </span>
-          )}
-        </button>
-
-        {/* Balance Display */}
-        <div className="flex items-center bg-[#151c28] border border-[#202b3d] rounded-xl px-3 py-1.5 gap-2">
-          <div className="w-5 h-5 rounded-full bg-amber-400/20 border border-amber-400/40 flex items-center justify-center font-bold text-[10px] text-amber-400">
+      {/* Right: Wallet Balance Pill + Deposit Button */}
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Balance Pill: Gold 'Br' Coin + Amount + Eye + Dropdown */}
+        <div className="flex items-center bg-[#151d29] border border-[#212d40] rounded-xl px-2.5 py-1.5 gap-2">
+          {/* Circular Gold Coin */}
+          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-black font-black text-[10px] flex items-center justify-center shadow-sm">
             Br
           </div>
-          <span className="text-sm font-bold tracking-tight text-white font-mono min-w-[70px]">
+
+          {/* Balance Amount */}
+          <span className="text-sm font-black tracking-tight text-white font-mono">
             {showBalance ? `${wallet.availableBalance.toFixed(2)}` : '••••••'}
           </span>
+
+          {/* Eye Toggle */}
           <button
             onClick={() => setShowBalance(!showBalance)}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-colors p-0.5"
             title={showBalance ? 'Hide Balance' : 'Show Balance'}
           >
             {showBalance ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
           </button>
+
+          {/* Dropdown Chevron */}
+          <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
         </div>
 
-        {/* Deposit Button */}
+        {/* Solid Bright Green Deposit Button */}
         <button
           onClick={onOpenDeposit}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#00c853] to-[#00E676] hover:from-[#00b248] hover:to-[#00d66c] text-black font-extrabold text-xs tracking-wide shadow-lg shadow-[#00E676]/25 transition-all transform active:scale-95"
+          className="px-4 py-2 rounded-xl bg-[#00E676] hover:bg-[#00c853] text-black font-black text-xs sm:text-sm tracking-wide shadow-lg shadow-[#00E676]/25 transition-all transform active:scale-95"
         >
-          <PlusCircle className="w-4 h-4 stroke-[2.5]" />
-          <span>{language === 'am' ? 'ገንዘብ ያስገቡ' : 'Deposit'}</span>
+          {language === 'am' ? 'ገንዘብ አስገባ' : 'Deposit'}
         </button>
       </div>
     </header>

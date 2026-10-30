@@ -43,6 +43,15 @@ export class UserService {
     return { user, wallet, isNew };
   }
 
+  static updateUserPhone(telegramId: number, phoneNumber: string): User | undefined {
+    const user = this.usersByTelegramId.get(telegramId);
+    if (user) {
+      user.phoneNumber = phoneNumber;
+      return user;
+    }
+    return undefined;
+  }
+
   static getUserById(id: string): User | undefined {
     return this.usersById.get(id);
   }

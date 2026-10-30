@@ -25,7 +25,7 @@ interface CurrentUser {
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('games');
-  const [selectedGame, setSelectedGame] = useState<string>('aviator');
+  const [selectedGame, setSelectedGame] = useState<string>('lobby');
   const [language, setLanguage] = useState<'am' | 'en'>('am');
 
   // Active User State
@@ -148,37 +148,65 @@ export const App: React.FC = () => {
         {/* Left Sidebar Menu */}
         <Sidebar
           activeTab={activeTab}
-          onSelectTab={(tab) => setActiveTab(tab)}
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            if (tab === 'games') setSelectedGame('lobby');
+          }}
           language={language}
         />
 
         {/* Main Content Viewport */}
         <main className="flex-1 p-3 sm:p-5 md:p-6 overflow-y-auto max-w-7xl mx-auto w-full">
-          {/* TAB 1: ALL GAMES SUITE */}
+          {/* TAB 1: ALL GAMES SUITE & MELA BET HOME SCREEN */}
           {activeTab === 'games' && (
             <div className="flex flex-col gap-3">
-              {/* Quick Game Switcher Header */}
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-                {[
-                  { id: 'aviator', name: '✈️ Aviator', color: 'from-red-600 to-rose-600' },
-                  { id: 'fast-keno', name: '🎱 Fast Keno (80 Balls)', color: 'from-emerald-600 to-teal-700' },
-                  { id: 'chicken-road', name: '🐔 Chicken Road 2.0', color: 'from-amber-600 to-orange-600' },
-                  { id: 'crazy-777', name: '🎰 Crazy 777 Slots', color: 'from-purple-600 to-indigo-700' },
-                  { id: 'lobby', name: '🎮 All Games Lobby', color: 'from-blue-600 to-cyan-700' },
-                ].map((g) => (
+              {/* If a game is currently open, show a clean Back to Lobby header bar */}
+              {selectedGame !== 'lobby' && (
+                <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-1 border-b border-[#1b2332]">
                   <button
-                    key={g.id}
-                    onClick={() => setSelectedGame(g.id)}
-                    className={`px-3.5 py-2 rounded-xl font-black text-xs shrink-0 transition-all flex items-center gap-1.5 ${
-                      selectedGame === g.id
-                        ? `bg-gradient-to-r ${g.color} text-white shadow-lg ring-1 ring-white/30 scale-102`
-                        : 'bg-[#141b27] text-gray-300 hover:bg-[#1c2637] border border-[#232f45]'
-                    }`}
+                    onClick={() => setSelectedGame('lobby')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#141b26] hover:bg-[#1a2333] border border-[#232f45] text-xs font-black text-gray-200 transition-all shrink-0"
                   >
-                    <span>{g.name}</span>
+                    <span>‹</span>
+                    <span>All Games</span>
                   </button>
-                ))}
-              </div>
+
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                    {[
+                      { id: 'aviator', name: '✈️ Aviator' },
+                      { id: 'fast-keno', name: '🎱 Fast Keno' },
+                      { id: 'chicken-road', name: '🐔 Chicken Road' },
+                      { id: 'crazy-777', name: '🎰 Slots' },
+                    ].map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => setSelectedGame(g.id)}
+                        className={`px-3 py-1 rounded-xl font-bold text-xs shrink-0 transition-all ${
+                          selectedGame === g.id
+                            ? 'bg-[#00E676] text-black font-black'
+                            : 'bg-[#141b26] text-gray-300 hover:text-white'
+                        }`}
+                      >
+                        {g.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Home Screen: Full Mela Bet Lobby */}
+              {selectedGame === 'lobby' && (
+                <GamesLobby
+                  onSelectGame={(gameId) => {
+                    if (gameId === 'jet-x' || gameId === 'aviator') setSelectedGame('aviator');
+                    else if (gameId === 'fast-keno') setSelectedGame('fast-keno');
+                    else if (gameId === 'chicken-road') setSelectedGame('chicken-road');
+                    else if (gameId === 'promotions') setActiveTab('promotions');
+                    else setSelectedGame('crazy-777');
+                  }}
+                  language={language}
+                />
+              )}
 
               {/* Game View: Aviator */}
               {selectedGame === 'aviator' && (
@@ -214,19 +242,6 @@ export const App: React.FC = () => {
                 <SlotGame
                   wallet={wallet}
                   onRefreshWallet={refreshWallet}
-                  language={language}
-                />
-              )}
-
-              {/* Game View: Full Interactive Lobby */}
-              {selectedGame === 'lobby' && (
-                <GamesLobby
-                  onSelectGame={(gameId) => {
-                    if (gameId === 'jet-x' || gameId === 'aviator') setSelectedGame('aviator');
-                    else if (gameId === 'fast-keno') setSelectedGame('fast-keno');
-                    else if (gameId === 'chicken-road') setSelectedGame('chicken-road');
-                    else setSelectedGame('crazy-777');
-                  }}
                   language={language}
                 />
               )}
