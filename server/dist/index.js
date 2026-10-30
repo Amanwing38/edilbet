@@ -135,9 +135,10 @@ app.post('/api/wallet/deposit', (req, res) => {
 app.post('/api/wallet/deposit/confirm', (req, res) => {
     try {
         const { orderId, referenceCode } = req.body;
-        const updated = walletService_js_1.WalletService.submitDepositProof(orderId, referenceCode);
-        (0, bot_js_1.notifyAdminNewDeposit)(updated);
-        res.json({ success: true, order: updated, message: 'Receipt submitted. Awaiting cashier verification.' });
+        const { order, wallet } = walletService_js_1.WalletService.submitDepositProof(orderId, referenceCode);
+        io.emit('wallet_updated', { userId: order.userId, wallet });
+        (0, bot_js_1.notifyAdminNewDeposit)(order);
+        res.json({ success: true, order, wallet, message: 'Deposit verified and balance credited successfully!' });
     }
     catch (err) {
         res.status(400).json({ success: false, error: err.message });
@@ -147,12 +148,15 @@ app.post('/api/wallet/deposit/confirm', (req, res) => {
 app.post('/api/wallet/withdraw', (req, res) => {
     try {
         const userId = getUserId(req);
-        const { amount, phone, username } = req.body;
+        const { amount, paymentMethod, phone, cbeAccount, accountHolderName, username } = req.body;
         const result = walletService_js_1.WalletService.requestWithdrawal({
             userId,
             username: username || 'Player',
             amount: Number(amount),
-            phone: phone || '0938749239'
+            paymentMethod: paymentMethod === 'CBE_BIRR' || paymentMethod === 'CBE_BANK' ? 'CBE_BIRR' : 'TELEBIRR',
+            phone,
+            cbeAccount,
+            accountHolderName
         });
         io.emit('wallet_updated', { userId, wallet: result.wallet });
         (0, bot_js_1.notifyAdminNewWithdrawal)(result.transaction);

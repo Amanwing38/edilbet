@@ -59,6 +59,7 @@ export interface Transaction {
   senderPhone?: string;
   recipientPhone?: string;
   recipientAccount?: string;
+  accountHolderName?: string;
   referenceCode?: string; // Telebirr Trans ID / CBE memo code
   status: TransactionStatus;
   adminNote?: string;

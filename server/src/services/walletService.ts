@@ -12,13 +12,14 @@ export class WalletService {
   public static readonly TELEBIRR_RECIPIENT = '0938749239';
   public static readonly CBE_RECIPIENT = '1000450457047';
 
-  // Limits
+  // Limits & Fees
   public static readonly MIN_DEPOSIT = 50;
   public static readonly MAX_DEPOSIT = 10000;
-  public static readonly MIN_WITHDRAWAL = 500;
-  public static readonly MAX_WITHDRAWAL = 2000;
-  public static readonly DAILY_WITHDRAWAL_LIMIT = 5000;
-  public static readonly WITHDRAWAL_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+  public static readonly MIN_WITHDRAWAL = 50; // Accessible min withdrawal
+  public static readonly MAX_WITHDRAWAL = 10000;
+  public static readonly WITHDRAWAL_FEE = 50; // Fixed 50 ETB transfer fee
+  public static readonly DAILY_WITHDRAWAL_LIMIT = 20000;
+  public static readonly WITHDRAWAL_COOLDOWN_MS = 0; // Seamless instant processing
 
   /**
    * Initialize or retrieve user wallet
@@ -26,14 +27,16 @@ export class WalletService {
   static getOrCreateWallet(userId: string): Wallet {
     let wallet = this.wallets.get(userId);
     if (!wallet) {
+      // Admin account starts with demo funds; new user accounts start with 0.00 ETB
+      const isAdmin = userId === 'EB-741891' || userId.includes('8148611275');
       wallet = {
         userId,
         currency: 'ETB',
-        availableBalance: 196.21, // Realistic starter balance matching the demo screenshots
-        bonusBalance: 0.60,
-        wagerRemaining: 54.00,
-        totalDeposited: 0,
-        totalWithdrawn: 0,
+        availableBalance: isAdmin ? 196.21 : 0.00,
+        bonusBalance: 0.00,
+        wagerRemaining: 0.00,
+        totalDeposited: 0.00,
+        totalWithdrawn: 0.00,
         updatedAt: new Date().toISOString()
       };
       this.wallets.set(userId, wallet);
@@ -149,30 +152,37 @@ export class WalletService {
 
   /**
    * Customer submits proof / Transaction ID after transferring (Step 2: I've Paid)
+   * Instantly credits player's wallet upon receiving proof!
    */
-  static submitDepositProof(orderId: string, referenceCode: string): Transaction {
+  static submitDepositProof(orderId: string, referenceCode: string): { order: Transaction; wallet: Wallet } {
     const order = this.transactions.get(orderId);
     if (!order) {
       throw new Error('Deposit order not found.');
     }
 
-    if (order.status !== 'PENDING') {
-      throw new Error(`Order is already ${order.status}.`);
-    }
-
-    if (order.expiresAt && new Date(order.expiresAt).getTime() < Date.now()) {
-      order.status = 'EXPIRED';
-      throw new Error('Order expired. Please create a new deposit request.');
+    if (order.status === 'COMPLETED' || order.status === 'APPROVED') {
+      const wallet = this.getOrCreateWallet(order.userId);
+      return { order, wallet };
     }
 
     const trimmedCode = referenceCode.trim().toUpperCase();
     if (this.usedReferenceCodes.has(trimmedCode)) {
       throw new Error('This Transaction ID has already been submitted or approved. Duplicate submissions are not allowed.');
     }
+    this.usedReferenceCodes.add(trimmedCode);
 
     order.referenceCode = trimmedCode;
-    order.adminNote = 'Customer marked as paid. Awaiting cashier SMS verification.';
-    return order;
+    order.status = 'COMPLETED';
+    order.settledAt = new Date().toISOString();
+    order.adminNote = 'Customer submitted payment proof. Balance instantly credited.';
+
+    // Instantly credit player's wallet
+    const wallet = this.getOrCreateWallet(order.userId);
+    wallet.availableBalance = parseFloat((wallet.availableBalance + order.amount).toFixed(2));
+    wallet.totalDeposited = parseFloat((wallet.totalDeposited + order.amount).toFixed(2));
+    wallet.updatedAt = new Date().toISOString();
+
+    return { order, wallet };
   }
 
   /**
@@ -184,8 +194,10 @@ export class WalletService {
       throw new Error('Deposit order not found.');
     }
 
+    const wallet = this.getOrCreateWallet(order.userId);
+
     if (order.status === 'APPROVED' || order.status === 'COMPLETED') {
-      throw new Error('Order is already approved.');
+      return { order, wallet };
     }
 
     order.status = 'APPROVED';
@@ -196,7 +208,6 @@ export class WalletService {
       this.usedReferenceCodes.add(order.referenceCode);
     }
 
-    const wallet = this.getOrCreateWallet(order.userId);
     wallet.availableBalance = parseFloat((wallet.availableBalance + order.amount).toFixed(2));
     wallet.totalDeposited = parseFloat((wallet.totalDeposited + order.amount).toFixed(2));
     wallet.updatedAt = new Date().toISOString();
@@ -220,65 +231,65 @@ export class WalletService {
   }
 
   /**
-   * Request Withdrawal with Limits & Wagering Protection
+   * Request Withdrawal with Choice of CBE or Telebirr
+   * Deducts amount + 50 ETB transfer fee immediately!
    */
   static requestWithdrawal(params: {
     userId: string;
     username: string;
     amount: number;
-    phone: string;
+    paymentMethod: 'TELEBIRR' | 'CBE_BIRR';
+    phone?: string;
+    cbeAccount?: string;
+    accountHolderName?: string;
   }): { transaction: Transaction; wallet: Wallet; bonusCancelled: boolean } {
-    const { userId, username, amount, phone } = params;
+    const { userId, username, amount, paymentMethod, phone, cbeAccount, accountHolderName } = params;
     const wallet = this.getOrCreateWallet(userId);
+
+    const fee = this.WITHDRAWAL_FEE; // 50 ETB
+    const totalDebit = parseFloat((amount + fee).toFixed(2));
 
     // 1. Minimum & Maximum Limits
     if (amount < this.MIN_WITHDRAWAL) {
-      throw new Error(`Minimum withdrawal amount is ${this.MIN_WITHDRAWAL} ETB. Your balance: ${wallet.availableBalance} ETB`);
+      throw new Error(`ዝቅተኛ የማውጣት መጠን ${this.MIN_WITHDRAWAL} ብር ነው። (Minimum withdrawal is ${this.MIN_WITHDRAWAL} ETB)`);
     }
     if (amount > this.MAX_WITHDRAWAL) {
-      throw new Error(`Maximum withdrawal per request is ${this.MAX_WITHDRAWAL} ETB.`);
+      throw new Error(`ከፍተኛ የማውጣት መጠን በአንድ ጊዜ ${this.MAX_WITHDRAWAL} ብር ነው። (Maximum withdrawal is ${this.MAX_WITHDRAWAL} ETB)`);
     }
 
-    // 2. Available Balance Check
-    if (wallet.availableBalance < amount) {
-      throw new Error(`Insufficient available balance. You requested ${amount} ETB, but only have ${wallet.availableBalance} ETB.`);
+    // 2. Validate Method Details
+    if (paymentMethod === 'TELEBIRR') {
+      if (!phone || phone.trim().length < 9) {
+        throw new Error('እባክዎ ትክክለኛ የቴሌብር ስልክ ቁጥር ያስገቡ! (Please enter a valid Telebirr phone number)');
+      }
+    } else {
+      if (!cbeAccount || cbeAccount.trim().length < 10) {
+        throw new Error('እባክዎ ትክክለኛ የንግድ ባንክ (CBE) ሂሳብ ቁጥር ያስገቡ! (Please enter a valid 13-digit CBE account number)');
+      }
+      if (!accountHolderName || accountHolderName.trim().length < 3) {
+        throw new Error('እባክዎ የሂሳብ ባለቤቱን ሙሉ ስም ያስገቡ! (Please enter the CBE account holder full name)');
+      }
     }
 
-    // 3. Hourly Throttle Check (1 request every 1 hour)
-    const now = Date.now();
-    const lastTime = this.lastWithdrawalTimestamps.get(userId) || 0;
-    if (now - lastTime < this.WITHDRAWAL_COOLDOWN_MS) {
-      const waitMinutes = Math.ceil((this.WITHDRAWAL_COOLDOWN_MS - (now - lastTime)) / 60000);
-      throw new Error(`You can only submit 1 withdrawal request per hour. Please wait ${waitMinutes} minutes.`);
+    // 3. Balance Check: amount + 50 ETB fee
+    if (wallet.availableBalance < totalDebit) {
+      throw new Error(
+        `ቀሪ ሂሳብዎ በቂ አይደለም! ${amount} ብር ለማውጣት ከ 50 ብር የዝውውር ክፍያ ጋር ድምር ${totalDebit} ብር በሂሳብዎ ውስጥ ሊኖር ይገባል። የአሁኑ ቀሪ ሂሳብዎ: ${wallet.availableBalance.toFixed(2)} ብር ነው።`
+      );
     }
 
-    // 4. Daily Limit Check (5,000 ETB daily allowance)
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const dailyRec = this.dailyWithdrawalAmounts.get(userId);
-    const currentDailyAmount = (dailyRec && dailyRec.date === todayStr) ? dailyRec.amount : 0;
-
-    if (currentDailyAmount + amount > this.DAILY_WITHDRAWAL_LIMIT) {
-      const leftToday = Math.max(0, this.DAILY_WITHDRAWAL_LIMIT - currentDailyAmount);
-      throw new Error(`Daily limit exceeded. You have ${leftToday} ETB left today of your 5,000 ETB allowance.`);
-    }
-
-    // 5. Bonus Wagering Protection
+    // 4. Bonus Wagering Protection
     let bonusCancelled = false;
     if (wallet.bonusBalance > 0 || wallet.wagerRemaining > 0) {
-      // User is informed that withdrawing cancels pending bonus funds
       wallet.bonusBalance = 0;
       wallet.wagerRemaining = 0;
       bonusCancelled = true;
     }
 
-    // 6. Lock and Deduct Balance Atomically
-    wallet.availableBalance = parseFloat((wallet.availableBalance - amount).toFixed(2));
+    // 5. Lock and Deduct Balance Atomically (Amount + 50 ETB Transfer Fee)
+    wallet.availableBalance = parseFloat((wallet.availableBalance - totalDebit).toFixed(2));
     wallet.totalWithdrawn = parseFloat((wallet.totalWithdrawn + amount).toFixed(2));
     wallet.updatedAt = new Date().toISOString();
-
-    // Update trackers
-    this.lastWithdrawalTimestamps.set(userId, now);
-    this.dailyWithdrawalAmounts.set(userId, { date: todayStr, amount: currentDailyAmount + amount });
 
     const tx: Transaction = {
       id: uuidv4(),
@@ -287,15 +298,56 @@ export class WalletService {
       username,
       type: 'WITHDRAWAL',
       amount: -amount,
-      fee: 0,
-      paymentMethod: 'TELEBIRR',
+      fee,
+      paymentMethod,
       recipientPhone: phone,
+      recipientAccount: cbeAccount,
+      accountHolderName,
       status: 'PENDING',
       createdAt: new Date().toISOString()
     };
     this.transactions.set(tx.id, tx);
 
     return { transaction: tx, wallet, bonusCancelled };
+  }
+
+  /**
+   * Complete Withdrawal (Admin marked as paid)
+   */
+  static completeWithdrawal(txId: string, adminUsername: string): Transaction {
+    const tx = this.transactions.get(txId);
+    if (!tx) throw new Error('Transaction not found.');
+    if (tx.status === 'COMPLETED') return tx;
+
+    tx.status = 'COMPLETED';
+    tx.settledAt = new Date().toISOString();
+    tx.adminNote = `Paid & dispatched by admin ${adminUsername}`;
+    return tx;
+  }
+
+  /**
+   * Reject Withdrawal & Refund (Amount + 50 ETB Fee)
+   */
+  static rejectWithdrawal(txId: string, reason: string): { transaction: Transaction; wallet: Wallet } {
+    const tx = this.transactions.get(txId);
+    if (!tx) throw new Error('Transaction not found.');
+    if (tx.status === 'REJECTED') {
+      const wallet = this.getOrCreateWallet(tx.userId);
+      return { transaction: tx, wallet };
+    }
+
+    tx.status = 'REJECTED';
+    tx.settledAt = new Date().toISOString();
+    tx.adminNote = reason || 'Withdrawal rejected by admin. Funds refunded.';
+
+    // Refund full amount + 50 ETB fee
+    const refundTotal = Math.abs(tx.amount) + (tx.fee || 50);
+    const wallet = this.getOrCreateWallet(tx.userId);
+    wallet.availableBalance = parseFloat((wallet.availableBalance + refundTotal).toFixed(2));
+    wallet.totalWithdrawn = Math.max(0, parseFloat((wallet.totalWithdrawn - Math.abs(tx.amount)).toFixed(2)));
+    wallet.updatedAt = new Date().toISOString();
+
+    return { transaction: tx, wallet };
   }
 
   /**

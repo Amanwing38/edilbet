@@ -60,7 +60,7 @@ export const App: React.FC = () => {
   const [moneyRainDrop, setMoneyRainDrop] = useState<MoneyRainDrop | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
 
-  // Authenticate user from Telegram WebApp
+  // Authenticate user from Telegram WebApp or unique local storage ID
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
     if (tg) {
@@ -73,9 +73,16 @@ export const App: React.FC = () => {
     const paramTgId = urlParams.get('tgId');
     const paramName = urlParams.get('name');
 
-    const telegramId = tgUser?.id || (paramTgId ? Number(paramTgId) : 8148611275);
-    const firstName = tgUser?.first_name || paramName || 'DriveAddis';
-    const username = tgUser?.username || 'Driveaddis4A';
+    // Ensure every user/browser gets their own unique account
+    let storedId = localStorage.getItem('edilbet_local_tg_id');
+    if (!storedId) {
+      storedId = String(Math.floor(100000000 + Math.random() * 900000000));
+      localStorage.setItem('edilbet_local_tg_id', storedId);
+    }
+
+    const telegramId = tgUser?.id || (paramTgId ? Number(paramTgId) : Number(storedId));
+    const firstName = tgUser?.first_name || paramName || (tgUser?.id ? 'Player' : `User_${storedId.slice(-4)}`);
+    const username = tgUser?.username || `user_${storedId.slice(-4)}`;
 
     fetch('/api/user/auth', {
       method: 'POST',

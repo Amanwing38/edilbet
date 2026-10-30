@@ -39,14 +39,29 @@ async function notifyAdminNewWithdrawal(tx) {
         return;
     const adminChatId = 8148611275;
     const keyboard = new grammy_1.InlineKeyboard()
-        .text('✅ Paid / Dispatched', `paid_with:${tx.id}`)
-        .text('❌ Reject & Refund', `reject_with:${tx.id}`);
-    const msg = `💸 **New Withdrawal Request!**\n\n` +
+        .text('✅ Paid / ተከፍሏል', `paid_with:${tx.id}`)
+        .text('❌ Reject & Refund / መልስ', `reject_with:${tx.id}`);
+    const payoutAmount = Math.abs(tx.amount);
+    const fee = tx.fee || 50;
+    const totalDeducted = payoutAmount + fee;
+    let destDetails = '';
+    if (tx.paymentMethod === 'CBE_BIRR' || tx.paymentMethod === 'CBE_BANK') {
+        destDetails = `• **ዘዴ (Method)**: 🏦 **CBE Bank (የኢትዮጵያ ንግድ ባንክ)**\n` +
+            `• **ሂሳብ ቁጥር (CBE Account)**: \`${tx.recipientAccount}\`\n` +
+            `• **የሂሳብ ባለቤት (Full Name)**: **${tx.accountHolderName || 'N/A'}**`;
+    }
+    else {
+        destDetails = `• **ዘዴ (Method)**: 📱 **Telebirr (ቴሌብር)**\n` +
+            `• **የቴሌብር ስልክ (Telebirr Phone)**: \`${tx.recipientPhone || tx.senderPhone || '0938749239'}\``;
+    }
+    const msg = `💸 **አዲስ የገንዘብ ማውጣት ጥያቄ (New Withdrawal Request)!**\n\n` +
         `• **Order ID**: \`${tx.orderNumber}\`\n` +
-        `• **Player ID**: \`${tx.userId}\` (${tx.username})\n` +
-        `• **Amount**: **${Math.abs(tx.amount)} ETB**\n` +
-        `• **Send To Telebirr**: \`${tx.recipientPhone || tx.senderPhone || '0938749239'}\`\n\n` +
-        `Please transfer via Telebirr app, then tap Paid below:`;
+        `• **ተጫዋች (Player)**: \`${tx.userId}\` (${tx.username})\n` +
+        `${destDetails}\n\n` +
+        `💰 **የሚላክለት (Payout Amount)**: **${payoutAmount.toFixed(2)} ETB**\n` +
+        `⚡ **የዝውውር ክፍያ (Transfer Fee)**: **${fee.toFixed(2)} ETB**\n` +
+        `📉 **ከአካውንቱ የተቆረጠው ድምር (Total Deducted)**: **${totalDeducted.toFixed(2)} ETB**\n\n` +
+        `እባክዎ ገንዘቡን ልከው ሲያጠናቅቁ ከታች "✅ ተከፍሏል" የሚለውን ይጫኑ:`;
     await botInstance.api.sendMessage(adminChatId, msg, {
         parse_mode: 'Markdown',
         reply_markup: keyboard
@@ -268,18 +283,40 @@ function launchBot(token, initialUrl) {
         });
         bot.callbackQuery(/^paid_with:(.+)$/, async (ctx) => {
             const txId = ctx.match[1];
-            await ctx.answerCallbackQuery({ text: 'Withdrawal marked as Paid!' });
-            await ctx.editMessageText(`✅ **Withdrawal Paid & Dispatched!**\n\n` +
-                `• **Transaction ID**: \`${txId}\`\n` +
-                `• **Status**: Completed\n` +
-                `• **Handled By**: @${ctx.from.username || ctx.from.first_name}`, { parse_mode: 'Markdown' });
+            try {
+                const completed = walletService_js_1.WalletService.completeWithdrawal(txId, ctx.from.username || ctx.from.first_name || 'Admin');
+                await ctx.answerCallbackQuery({ text: '✓ Withdrawal marked as Paid!' });
+                await ctx.editMessageText(`✅ **Withdrawal Paid & Dispatched!**\n\n` +
+                    `• **Order ID**: \`${completed.orderNumber}\`\n` +
+                    `• **Player ID**: \`${completed.userId}\` (${completed.username})\n` +
+                    `• **Payout Amount**: **${Math.abs(completed.amount).toFixed(2)} ETB**\n` +
+                    `• **Method**: ${completed.paymentMethod}\n` +
+                    `• **Status**: Completed\n` +
+                    `• **Handled By**: @${ctx.from.username || ctx.from.first_name}`, { parse_mode: 'Markdown' });
+            }
+            catch (err) {
+                await ctx.answerCallbackQuery({ text: err.message, show_alert: true });
+            }
         });
         bot.callbackQuery(/^reject_with:(.+)$/, async (ctx) => {
             const txId = ctx.match[1];
-            await ctx.answerCallbackQuery({ text: 'Withdrawal rejected.' });
-            await ctx.editMessageText(`❌ **Withdrawal Rejected & Balance Retained!**\n\n` +
-                `• **Transaction ID**: \`${txId}\`\n` +
-                `• **Status**: Cancelled`, { parse_mode: 'Markdown' });
+            try {
+                const result = walletService_js_1.WalletService.rejectWithdrawal(txId, 'Rejected by Telegram Admin.');
+                if (socketEmitterCallback) {
+                    socketEmitterCallback(result.transaction.userId, result.wallet);
+                }
+                const refundTotal = Math.abs(result.transaction.amount) + (result.transaction.fee || 50);
+                await ctx.answerCallbackQuery({ text: `✓ Rejected & Refunded ${refundTotal} ETB!` });
+                await ctx.editMessageText(`❌ **Withdrawal Rejected & Refunded!**\n\n` +
+                    `• **Order ID**: \`${result.transaction.orderNumber}\`\n` +
+                    `• **Player ID**: \`${result.transaction.userId}\`\n` +
+                    `• **Refunded to Wallet**: **+${refundTotal.toFixed(2)} ETB** (includes 50 ETB fee)\n` +
+                    `• **Player Available Balance**: **${result.wallet.availableBalance.toFixed(2)} ETB**\n` +
+                    `• **Status**: Cancelled & Restored`, { parse_mode: 'Markdown' });
+            }
+            catch (err) {
+                await ctx.answerCallbackQuery({ text: err.message, show_alert: true });
+            }
         });
         bot.start({
             onStart: (botInfo) => {

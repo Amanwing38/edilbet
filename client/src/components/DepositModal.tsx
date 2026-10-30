@@ -73,7 +73,10 @@ export const DepositModal: React.FC<DepositModalProps> = ({
       // 1. Create deposit order
       const createRes = await fetch('/api/wallet/deposit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || ''
+        },
         body: JSON.stringify({
           userId: currentUser?.id,
           username: currentUser?.username || currentUser?.firstName,
@@ -87,10 +90,13 @@ export const DepositModal: React.FC<DepositModalProps> = ({
         throw new Error(createData.error || 'Failed to initialize deposit order');
       }
 
-      // 2. Submit transaction ID confirmation
+      // 2. Submit transaction ID confirmation & instant credit
       const confirmRes = await fetch('/api/wallet/deposit/confirm', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || ''
+        },
         body: JSON.stringify({
           orderId: createData.order.id,
           referenceCode: code

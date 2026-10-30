@@ -33,9 +33,13 @@ export const WalletView: React.FC<WalletViewProps> = ({
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
 
   // Withdrawal Form State
-  const [withdrawAmount, setWithdrawAmount] = useState<number>(500);
+  const [withdrawMethod, setWithdrawMethod] = useState<'TELEBIRR' | 'CBE_BIRR'>('TELEBIRR');
+  const [withdrawAmount, setWithdrawAmount] = useState<number>(200);
   const [withdrawPhone, setWithdrawPhone] = useState('0938749239');
+  const [withdrawCbeAccount, setWithdrawCbeAccount] = useState('');
+  const [withdrawAccountName, setWithdrawAccountName] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [withdrawSuccessMsg, setWithdrawSuccessMsg] = useState<string | null>(null);
   const [historyList, setHistoryList] = useState<Transaction[]>([]);
 
   // 30-Minute Countdown Timer for Active Deposit Order
@@ -143,29 +147,60 @@ export const WalletView: React.FC<WalletViewProps> = ({
 
   // Submit Withdrawal Request
   const handleRequestWithdrawal = async () => {
-    if (withdrawAmount < 500) {
-      alert('Minimum withdrawal amount is 500 ETB.');
+    const fee = 50;
+    const totalRequired = withdrawAmount + fee;
+
+    if (withdrawAmount < 50) {
+      alert(language === 'am' ? 'ዝቅተኛ የማውጣት መጠን 50 ብር ነው።' : 'Minimum withdrawal amount is 50 ETB.');
       return;
     }
-    if (withdrawAmount > 2000) {
-      alert('Maximum withdrawal per request is 2,000 ETB.');
+    if (withdrawAmount > 10000) {
+      alert(language === 'am' ? 'ከፍተኛ የማውጣት መጠን በአንድ ጊዜ 10,000 ብር ነው።' : 'Maximum withdrawal per request is 10,000 ETB.');
       return;
     }
-    if (wallet.availableBalance < withdrawAmount) {
-      alert(`Insufficient available balance. You have ${wallet.availableBalance} ETB.`);
+
+    if (withdrawMethod === 'TELEBIRR') {
+      if (!withdrawPhone || withdrawPhone.trim().length < 9) {
+        alert(language === 'am' ? 'እባክዎ ትክክለኛ የቴሌብር ስልክ ቁጥር ያስገቡ (ለምሳሌ 09xxxxxxxx)!' : 'Please enter a valid Telebirr phone number!');
+        return;
+      }
+    } else {
+      if (!withdrawCbeAccount || withdrawCbeAccount.trim().length < 10) {
+        alert(language === 'am' ? 'እባክዎ ትክክለኛ የንግድ ባንክ (CBE) 13 አሃዝ ሂሳብ ቁጥር ያስገቡ!' : 'Please enter a valid 13-digit CBE bank account number!');
+        return;
+      }
+      if (!withdrawAccountName || withdrawAccountName.trim().length < 3) {
+        alert(language === 'am' ? 'እባክዎ የሂሳብ ባለቤቱን ሙሉ ስም ያስገቡ!' : 'Please enter the bank account holder full name!');
+        return;
+      }
+    }
+
+    if (wallet.availableBalance < totalRequired) {
+      alert(
+        language === 'am'
+          ? `ቀሪ ሂሳብዎ በቂ አይደለም! ${withdrawAmount} ብር ለማውጣት ከ 50 ብር የዝውውር ክፍያ ጋር ድምር ${totalRequired} ብር ያስፈልጋል። የአሁኑ ቀሪ ሂሳብዎ ${wallet.availableBalance.toFixed(2)} ብር ነው።`
+          : `Insufficient balance! To withdraw ${withdrawAmount} ETB + 50 ETB transfer fee, you need ${totalRequired} ETB. Your balance is ${wallet.availableBalance.toFixed(2)} ETB.`
+      );
       return;
     }
 
     setIsWithdrawing(true);
+    setWithdrawSuccessMsg(null);
     try {
       const res = await fetch('/api/wallet/withdraw', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || ''
+        },
         body: JSON.stringify({
           userId: currentUser?.id,
           username: currentUser?.username || currentUser?.firstName,
           amount: withdrawAmount,
-          phone: withdrawPhone
+          paymentMethod: withdrawMethod,
+          phone: withdrawPhone,
+          cbeAccount: withdrawCbeAccount,
+          accountHolderName: withdrawAccountName
         })
       });
       const data = await res.json();
@@ -175,7 +210,11 @@ export const WalletView: React.FC<WalletViewProps> = ({
         return;
       }
 
-      alert('✓ Withdrawal request of ' + withdrawAmount + ' ETB submitted! Dispatched via Telebirr shortly.');
+      setWithdrawSuccessMsg(
+        language === 'am'
+          ? `✓ የ ${withdrawAmount} ብር የማውጣት ጥያቄዎ በተሳካ ሁኔታ ተልኳል! ከሂሳብዎ ${totalRequired} ብር (50 ብር የዝውውር ክፍያ ጨምሮ) ተቀንሷል። ገንዘቡ በደቂቃዎች ውስጥ ወደ ${withdrawMethod === 'TELEBIRR' ? 'ቴሌብርዎ' : 'ንግድ ባንክዎ'} ይላካል።`
+          : `✓ Withdrawal of ${withdrawAmount} ETB submitted! ${totalRequired} ETB deducted (includes 50 ETB transfer fee). Sent to your ${withdrawMethod === 'TELEBIRR' ? 'Telebirr' : 'CBE account'} shortly.`
+      );
       onRefreshWallet();
     } catch (err: any) {
       setIsWithdrawing(false);
@@ -410,102 +449,200 @@ export const WalletView: React.FC<WalletViewProps> = ({
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* WITHDRAWAL VIEW (Matching Image 4 & 5)                        */}
+      {/* WITHDRAWAL VIEW (Telebirr or CBE Bank with 50 ETB Fee)         */}
       {/* ------------------------------------------------------------- */}
       {subTab === 'withdraw' && (
         <div className="bg-[#121824] border border-[#1e283b] rounded-3xl p-6 shadow-xl flex flex-col gap-5">
-          {/* Warning / Minimum Notice */}
-          <div className="p-3.5 rounded-2xl bg-amber-400/10 border border-amber-400/30 text-xs font-bold text-amber-300">
-            Minimum withdrawal amount is 500 ETB. Your balance: {wallet.availableBalance.toFixed(2)} ETB
-          </div>
+          {/* Success Banner */}
+          {withdrawSuccessMsg && (
+            <div className="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-xs font-bold text-emerald-300 leading-relaxed flex items-center gap-2">
+              <Check className="w-5 h-5 text-[#00E676] shrink-0" />
+              <span>{withdrawSuccessMsg}</span>
+            </div>
+          )}
 
           {/* Available to Withdraw Banner */}
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-bold text-gray-400">Available to Withdraw</span>
-            <span className="text-3xl font-black text-[#00E676] font-mono">
-              ETB {wallet.availableBalance.toFixed(2)}
-            </span>
-          </div>
-
-          {/* Withdrawal Limits Box */}
-          <div className="p-4 rounded-2xl bg-[#0b0e14] border border-[#1b2436] flex flex-col gap-2.5 text-xs">
-            <span className="font-extrabold text-white uppercase tracking-wider text-[11px]">
-              WITHDRAWAL LIMITS
-            </span>
-            <div className="flex justify-between text-gray-300">
-              <span>Per withdrawal</span>
-              <strong className="text-white font-mono">ETB 2,000.00</strong>
-            </div>
-            <div className="flex justify-between text-gray-300">
-              <span>One request every</span>
-              <strong className="text-white font-mono">1 hour</strong>
-            </div>
-            <div className="flex justify-between text-gray-300">
-              <span>Daily limit</span>
-              <strong className="text-white font-mono">ETB 5,000.00</strong>
-            </div>
-            <div className="flex justify-between text-gray-300">
-              <span>Left today</span>
-              <strong className="text-[#00E676] font-mono">ETB 5,000.00</strong>
-            </div>
-            {/* Daily Allowance Progress */}
-            <div className="w-full h-1.5 bg-[#1e283b] rounded-full overflow-hidden mt-1">
-              <div className="h-full bg-[#00E676] w-full" />
-            </div>
-            <span className="text-[10px] text-gray-400">
-              Your daily allowance resets at midnight.
-            </span>
-          </div>
-
-          {/* Bonus Wagering Warning Box (Matching Image 4) */}
-          {wallet.bonusBalance > 0 && (
-            <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/40 flex flex-col gap-2 text-xs">
-              <div className="flex items-center gap-2 text-amber-400 font-extrabold">
-                <AlertTriangle className="w-4 h-4" />
-                <span>You have a bonus running</span>
-              </div>
-              <p className="text-gray-300 text-[11px] leading-relaxed">
-                Withdrawing now cancels it. You would give up ETB {wallet.bonusBalance.toFixed(2)} of bonus funds with ETB {wallet.wagerRemaining.toFixed(2)} of wagering still to go.
-              </p>
-              <div className="w-full h-1.5 bg-[#251f15] rounded-full overflow-hidden">
-                <div className="h-full bg-amber-400 w-0" />
-              </div>
-              <span className="text-[10px] text-gray-400 font-mono">
-                ETB 0.00 of ETB {wallet.wagerRemaining.toFixed(2)} wagered
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-[#0b0e14] border border-[#1b2436]">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                {language === 'am' ? 'የሚወጣ ቀሪ ሂሳብ' : 'Available Balance'}
               </span>
+              <span className="text-2xl font-black text-[#00E676] font-mono">
+                {wallet.availableBalance.toFixed(2)} ETB
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-gray-400 font-bold block">የዝውውር ክፍያ (Fee)</span>
+              <span className="text-xs font-mono font-black text-amber-400">50.00 ETB</span>
+            </div>
+          </div>
+
+          {/* Payment Method Switcher: Telebirr vs CBE Bank */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-black text-gray-300 uppercase tracking-wider">
+              {language === 'am' ? 'የክፍያ ዘዴ ይምረጡ (Choose Payout Method) *' : 'Payout Method *'}
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setWithdrawMethod('TELEBIRR')}
+                className={`py-3.5 px-4 rounded-2xl border font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all ${
+                  withdrawMethod === 'TELEBIRR'
+                    ? 'border-[#00E676] bg-[#00E676]/15 text-white shadow-lg shadow-[#00E676]/20'
+                    : 'border-[#1e283b] bg-[#161f2e] text-gray-400 hover:bg-[#1b273b]'
+                }`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-[#00E676]" />
+                <span>📱 TELEBIRR (ቴሌብር)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWithdrawMethod('CBE_BIRR')}
+                className={`py-3.5 px-4 rounded-2xl border font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all ${
+                  withdrawMethod === 'CBE_BIRR'
+                    ? 'border-amber-400 bg-amber-400/15 text-white shadow-lg shadow-amber-400/20'
+                    : 'border-[#1e283b] bg-[#161f2e] text-gray-400 hover:bg-[#1b273b]'
+                }`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                <span>🏦 CBE (ንግድ ባንክ)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Conditional Inputs based on Method */}
+          {withdrawMethod === 'TELEBIRR' ? (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-gray-300">
+                {language === 'am' ? 'ገንዘቡ የሚላክበት የቴሌብር ስልክ ቁጥር *' : 'Telebirr Phone Number *'}
+              </label>
+              <input
+                type="text"
+                value={withdrawPhone}
+                onChange={(e) => setWithdrawPhone(e.target.value)}
+                placeholder="09xxxxxxxx ወይም 07xxxxxxxx"
+                className="w-full h-12 rounded-xl bg-[#0b0e14] border border-[#202b3d] px-4 font-mono font-bold text-white focus:outline-none focus:border-[#00E676] text-sm"
+              />
+              <span className="text-[10px] text-gray-400">
+                {language === 'am' ? 'ገንዘቡ በቀጥታ ወደዚህ የቴሌብር ቁጥር ይላካል።' : 'Funds will be transferred directly to this Telebirr number.'}
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-300">
+                  {language === 'am' ? 'የኢትዮጵያ ንግድ ባንክ (CBE) ሂሳብ ቁጥር *' : 'CBE Bank Account Number (13 digits) *'}
+                </label>
+                <input
+                  type="text"
+                  value={withdrawCbeAccount}
+                  onChange={(e) => setWithdrawCbeAccount(e.target.value)}
+                  placeholder="1000xxxxxxxxxx"
+                  className="w-full h-12 rounded-xl bg-[#0b0e14] border border-[#202b3d] px-4 font-mono font-bold text-white focus:outline-none focus:border-amber-400 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-300">
+                  {language === 'am' ? 'የሂሳብ ባለቤቱ ሙሉ ስም *' : 'Account Holder Full Name *'}
+                </label>
+                <input
+                  type="text"
+                  value={withdrawAccountName}
+                  onChange={(e) => setWithdrawAccountName(e.target.value)}
+                  placeholder="ለምሳሌ፡ አበበ ከበደ / Abebe Kebede"
+                  className="w-full h-12 rounded-xl bg-[#0b0e14] border border-[#202b3d] px-4 font-bold text-white focus:outline-none focus:border-amber-400 text-sm"
+                />
+              </div>
             </div>
           )}
 
           {/* Amount Input */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-400">Amount (ETB) *</label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-gray-300">
+                {language === 'am' ? 'የማውጣት መጠን (ETB) *' : 'Withdrawal Amount (ETB) *'}
+              </label>
+              <span className="text-xs font-mono font-black text-amber-400">
+                {withdrawAmount} Br
+              </span>
+            </div>
             <input
               type="number"
               value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(Number(e.target.value))}
+              onChange={(e) => setWithdrawAmount(Math.max(0, Number(e.target.value)))}
               className="w-full h-12 rounded-xl bg-[#0b0e14] border border-[#202b3d] px-4 font-mono font-black text-white text-lg focus:outline-none focus:border-[#00E676]"
             />
+            {/* Quick Chips */}
+            <div className="grid grid-cols-5 gap-1.5 mt-1">
+              {[100, 200, 500, 1000, 2000].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => setWithdrawAmount(amt)}
+                  className={`py-2 rounded-xl text-xs font-mono font-bold border transition-all ${
+                    withdrawAmount === amt
+                      ? 'border-[#00E676] bg-[#00E676]/20 text-[#00E676]'
+                      : 'border-[#1e283b] bg-[#161f2e] text-gray-400 hover:bg-[#1b273b]'
+                  }`}
+                >
+                  +{amt}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Phone Number */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-400">Telebirr Phone Number *</label>
-            <input
-              type="text"
-              value={withdrawPhone}
-              onChange={(e) => setWithdrawPhone(e.target.value)}
-              placeholder="09xxxxxxxx"
-              className="w-full h-12 rounded-xl bg-[#0b0e14] border border-[#202b3d] px-4 font-mono font-bold text-white focus:outline-none focus:border-[#00E676] text-sm"
-            />
+          {/* Transparent Fee & Balance Deduction Breakdown */}
+          <div className="p-4 rounded-2xl bg-[#0b0e14] border border-[#1b2436] flex flex-col gap-2.5 text-xs">
+            <span className="font-extrabold text-white uppercase tracking-wider text-[11px]">
+              {language === 'am' ? 'የክፍያና የዝውውር ዝርዝር (Payout Breakdown)' : 'Payout Breakdown'}
+            </span>
+            <div className="flex justify-between text-gray-300">
+              <span>{language === 'am' ? 'ወደ እርስዎ የሚላከው' : 'Payout to You'}</span>
+              <strong className="text-white font-mono">{withdrawAmount.toFixed(2)} ETB</strong>
+            </div>
+            <div className="flex justify-between text-gray-300">
+              <span>{language === 'am' ? 'የዝውውር ክፍያ (Transfer Fee)' : 'Transfer Fee'}</span>
+              <strong className="text-amber-400 font-mono">50.00 ETB</strong>
+            </div>
+            <div className="h-px bg-[#1e283b] my-0.5" />
+            <div className="flex justify-between text-white font-bold">
+              <span>{language === 'am' ? 'ከአካውንትዎ የሚቀነሰው ድምር' : 'Total Debited from Balance'}</span>
+              <strong className="text-[#00E676] font-mono text-sm">
+                {(withdrawAmount + 50).toFixed(2)} ETB
+              </strong>
+            </div>
+
+            {wallet.availableBalance < withdrawAmount + 50 ? (
+              <div className="mt-1 p-2 rounded-xl bg-red-500/10 border border-red-500/30 text-[11px] font-bold text-red-400 text-center">
+                ⚠️ {language === 'am'
+                  ? `ቀሪ ሂሳብዎ በቂ አይደለም! ${(withdrawAmount + 50).toFixed(2)} ብር ያስፈልጋል (ያልዎት፡ ${wallet.availableBalance.toFixed(2)} ብር)`
+                  : `Insufficient balance! You need ${(withdrawAmount + 50).toFixed(2)} ETB (Available: ${wallet.availableBalance.toFixed(2)} ETB)`}
+              </div>
+            ) : (
+              <div className="flex justify-between text-[11px] text-gray-400 pt-0.5">
+                <span>{language === 'am' ? 'ከማውጣት በኋላ የሚቀር' : 'Remaining Balance'}:</span>
+                <span className="font-mono font-bold text-gray-300">
+                  {(wallet.availableBalance - (withdrawAmount + 50)).toFixed(2)} ETB
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Request Withdrawal CTA */}
           <button
             onClick={handleRequestWithdrawal}
-            disabled={isWithdrawing}
-            className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#00c853] to-[#00E676] hover:from-[#00b248] hover:to-[#00d66c] text-black font-black text-base tracking-wider uppercase shadow-xl shadow-[#00E676]/30 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+            disabled={isWithdrawing || wallet.availableBalance < withdrawAmount + 50 || withdrawAmount < 50}
+            className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#00c853] to-[#00E676] hover:from-[#00b248] hover:to-[#00d66c] text-black font-black text-base tracking-wider uppercase shadow-xl shadow-[#00E676]/30 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <span>Request Withdrawal</span>
+            {isWithdrawing ? (
+              <span>በማስተናገድ ላይ...</span>
+            ) : (
+              <span>
+                {language === 'am'
+                  ? `ገንዘብ አውጡ (${withdrawAmount} ብር + 50 ብር ክፍያ)`
+                  : `Confirm Withdrawal (${withdrawAmount} ETB)`}
+              </span>
+            )}
           </button>
         </div>
       )}
