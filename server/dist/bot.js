@@ -204,13 +204,36 @@ function launchBot(token, initialUrl) {
                 reply_markup: inlineKeyboard
             });
         });
-        // Handle any message to immediately send launch button
+        // Handle any message to immediately send launch button or handle backslash commands
         bot.on('message:text', async (ctx) => {
             if (ctx.message.text.startsWith('/'))
                 return;
             const from = ctx.from;
             if (!from)
                 return;
+            const rawText = ctx.message.text.trim().toLowerCase();
+            if (rawText === '\\admin' || rawText === 'admin' || rawText === '\\stats' || rawText === 'stats') {
+                const stats = database_js_1.DBService.getPlatformStats();
+                const pendingDeps = database_js_1.DBService.getPendingDeposits().length;
+                const pendingWds = database_js_1.DBService.getPendingWithdrawals().length;
+                let recentList = '';
+                if (stats.recentUsers && stats.recentUsers.length > 0) {
+                    recentList = stats.recentUsers.slice(0, 5).map((u, i) => `${i + 1}. \`${u.id}\` — ${u.firstName} (@${u.username || 'N/A'})`).join('\n');
+                }
+                return ctx.reply(`📊 **ዕድል ቤት (Edil Bet) — Live Platform Stats**\n\n` +
+                    `👥 **ጠቅላላ የተመዘገቡ ተጫዋቾች (Total Users)**: **${stats.totalUsers}**\n` +
+                    `💼 **ንቁ ዋሌቶች (Active Wallets)**: **${stats.totalWallets}**\n` +
+                    `📝 **ጠቅላላ ግብይቶች (Total Transactions)**: **${stats.totalTransactions}**\n\n` +
+                    `💰 **የገንዘብ እንቅስቃሴ (Financial Overview)**:\n` +
+                    `• 📥 **ጠቅላላ ተቀማጭ (Total Deposited)**: **${stats.totalDeposited.toFixed(2)} ETB**\n` +
+                    `• 📤 **ጠቅላላ የወጣ (Total Withdrawn)**: **${stats.totalWithdrawn.toFixed(2)} ETB**\n` +
+                    `• 🏦 **በተጫዋቾች አካውንት የቀረ (Total In Wallets)**: **${stats.totalBalance.toFixed(2)} ETB**\n\n` +
+                    `⚡ **በመጠባበቅ ላይ ያሉ (Pending Queue)**:\n` +
+                    `• ተቀማጭ (Pending Deposits): **${pendingDeps}**\n` +
+                    `• ማውጣት (Pending Withdrawals): **${pendingWds}**\n\n` +
+                    (recentList ? `🆕 **የቅርብ ጊዜ ተጠቃሚዎች (Recent Users)**:\n${recentList}\n\n` : '') +
+                    `🟢 **Server Status**: Online 24/7 on Render Cloud (Frankfurt)`, { parse_mode: 'Markdown' });
+            }
             console.log(`📥 Received text from ${from.id}: "${ctx.message.text}"`);
             const { user, wallet } = userService_js_1.UserService.getOrCreateUser({
                 telegramId: from.id,
