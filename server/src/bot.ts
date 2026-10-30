@@ -4,6 +4,33 @@ import { WalletService } from './services/walletService.js';
 
 let botInstance: Bot | null = null;
 let currentWebAppHttpsUrl = process.env.WEBAPP_URL || 'https://edilbet.onrender.com';
+let socketEmitterCallback: ((userId: string, wallet: any) => void) | null = null;
+
+export function registerSocketEmitter(emitter: (userId: string, wallet: any) => void) {
+  socketEmitterCallback = emitter;
+}
+
+export async function notifyAdminNewDeposit(order: any) {
+  if (!botInstance) return;
+  const adminChatId = 8148611275;
+  const keyboard = new InlineKeyboard()
+    .text('✅ Approve (+ Credit)', `approve_dep:${order.id}`)
+    .text('❌ Reject', `reject_dep:${order.id}`);
+
+  const msg = `🔔 **New Deposit Submitted!**\n\n` +
+    `• **Order ID**: \`${order.orderNumber}\`\n` +
+    `• **Player ID**: \`${order.userId}\` (${order.username})\n` +
+    `• **Method**: ${order.paymentMethod}\n` +
+    `• **Amount**: **${order.amount} ETB**\n` +
+    `• **Sender Phone**: \`${order.senderPhone}\`\n` +
+    `• **Transaction ID / SMS**: \`${order.referenceCode}\`\n\n` +
+    `Tap Approve to instantly credit player's wallet:`;
+
+  await botInstance.api.sendMessage(adminChatId, msg, {
+    parse_mode: 'Markdown',
+    reply_markup: keyboard
+  }).catch((e) => console.error('Error notifying admin of deposit:', e.message));
+}
 
 export function updateBotWebAppUrl(url: string) {
   currentWebAppHttpsUrl = url;
@@ -219,6 +246,48 @@ export function launchBot(token: string, initialUrl?: string) {
         `Tap below to open your cashier order!`,
         { parse_mode: 'Markdown', reply_markup: keyboard }
       );
+    });
+
+    // Callback queries for instant Telegram Deposit Approval
+    bot.callbackQuery(/^approve_dep:(.+)$/, async (ctx) => {
+      const orderId = ctx.match[1];
+      try {
+        const result = WalletService.approveDeposit(orderId, ctx.from.username || ctx.from.first_name || 'Admin');
+        if (socketEmitterCallback) {
+          socketEmitterCallback(result.order.userId, result.wallet);
+        }
+        await ctx.answerCallbackQuery({ text: `✓ Approved ${result.order.amount} ETB!` });
+        await ctx.editMessageText(
+          `✅ **Deposit Approved & Credited!**\n\n` +
+          `• **Order ID**: \`${result.order.orderNumber}\`\n` +
+          `• **Player ID**: \`${result.order.userId}\`\n` +
+          `• **Amount**: **+${result.order.amount} ETB**\n` +
+          `• **Tx ID**: \`${result.order.referenceCode}\`\n` +
+          `• **New Balance**: **${result.wallet.availableBalance.toFixed(2)} ETB**\n` +
+          `• **Approved By**: @${ctx.from.username || ctx.from.first_name}`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (err: any) {
+        await ctx.answerCallbackQuery({ text: err.message, show_alert: true });
+      }
+    });
+
+    bot.callbackQuery(/^reject_dep:(.+)$/, async (ctx) => {
+      const orderId = ctx.match[1];
+      try {
+        const rejected = WalletService.rejectDeposit(orderId, 'Rejected by Telegram Admin.');
+        await ctx.answerCallbackQuery({ text: 'Deposit rejected.' });
+        await ctx.editMessageText(
+          `❌ **Deposit Rejected!**\n\n` +
+          `• **Order ID**: \`${rejected.orderNumber}\`\n` +
+          `• **Player ID**: \`${rejected.userId}\`\n` +
+          `• **Amount**: **${rejected.amount} ETB**\n` +
+          `• **Reason**: Verification failed`,
+          { parse_mode: 'Markdown' }
+        );
+      } catch (err: any) {
+        await ctx.answerCallbackQuery({ text: err.message, show_alert: true });
+      }
     });
 
     bot.start({

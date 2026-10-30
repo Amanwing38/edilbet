@@ -6,12 +6,18 @@ interface WalletViewProps {
   wallet: UserWallet;
   onRefreshWallet: () => void;
   language: 'am' | 'en';
+  currentUser?: {
+    id: string;
+    username: string;
+    firstName: string;
+  };
 }
 
 export const WalletView: React.FC<WalletViewProps> = ({
   wallet,
   onRefreshWallet,
-  language
+  language,
+  currentUser
 }) => {
   const [subTab, setSubTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
   const [paymentMethod, setPaymentMethod] = useState<'TELEBIRR' | 'CBE_BIRR'>('TELEBIRR');
@@ -81,6 +87,8 @@ export const WalletView: React.FC<WalletViewProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          userId: currentUser?.id,
+          username: currentUser?.username || currentUser?.firstName,
           amount: depositAmount,
           paymentMethod,
           senderPhone
@@ -154,6 +162,8 @@ export const WalletView: React.FC<WalletViewProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          userId: currentUser?.id,
+          username: currentUser?.username || currentUser?.firstName,
           amount: withdrawAmount,
           phone: withdrawPhone
         })

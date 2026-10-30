@@ -43,6 +43,9 @@ aviatorRoom.start();
 // Launch Telegram Bot (@EdilBetET_bot)
 const BOT_TOKEN = process.env.BOT_TOKEN || '8891588751:AAHMOttSv8O3K9i4X92t6-EcVYRJqMtcZe4';
 (0, bot_js_1.launchBot)(BOT_TOKEN);
+(0, bot_js_1.registerSocketEmitter)((userId, wallet) => {
+    io.emit('wallet_updated', { userId, wallet });
+});
 // Helper to get active user ID from request
 function getUserId(req) {
     const headerId = req.headers['x-user-id'];
@@ -127,6 +130,7 @@ app.post('/api/wallet/deposit/confirm', (req, res) => {
     try {
         const { orderId, referenceCode } = req.body;
         const updated = walletService_js_1.WalletService.submitDepositProof(orderId, referenceCode);
+        (0, bot_js_1.notifyAdminNewDeposit)(updated);
         res.json({ success: true, order: updated, message: 'Receipt submitted. Awaiting cashier verification.' });
     }
     catch (err) {

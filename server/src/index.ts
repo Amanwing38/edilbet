@@ -11,7 +11,7 @@ import { ProvablyFair } from './games/provablyFair.js';
 import { AviatorRoom } from './games/aviatorRoom.js';
 import { PromotionService } from './services/promotionService.js';
 import { AffiliateService } from './services/affiliateService.js';
-import { launchBot } from './bot.js';
+import { launchBot, notifyAdminNewDeposit, registerSocketEmitter } from './bot.js';
 
 process.on('uncaughtException', (err) => {
   console.error('Server Uncaught Exception (recovering):', err.message);
@@ -44,6 +44,9 @@ aviatorRoom.start();
 // Launch Telegram Bot (@EdilBetET_bot)
 const BOT_TOKEN = process.env.BOT_TOKEN || '8891588751:AAHMOttSv8O3K9i4X92t6-EcVYRJqMtcZe4';
 launchBot(BOT_TOKEN);
+registerSocketEmitter((userId, wallet) => {
+  io.emit('wallet_updated', { userId, wallet });
+});
 
 // Helper to get active user ID from request
 function getUserId(req: express.Request): string {
@@ -136,6 +139,7 @@ app.post('/api/wallet/deposit/confirm', (req, res) => {
   try {
     const { orderId, referenceCode } = req.body;
     const updated = WalletService.submitDepositProof(orderId, referenceCode);
+    notifyAdminNewDeposit(updated);
     res.json({ success: true, order: updated, message: 'Receipt submitted. Awaiting cashier verification.' });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });

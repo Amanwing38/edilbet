@@ -12,6 +12,7 @@ import { PromotionsView } from './components/PromotionsView';
 import { AffiliateView } from './components/AffiliateView';
 import { MoneyRainModal } from './components/MoneyRainModal';
 import { AdminCashierModal } from './components/AdminCashierModal';
+import { DepositModal } from './components/DepositModal';
 import { UserWallet, MoneyRainDrop } from './types';
 import { Ticket, Phone, Globe, ShieldCheck, MessageSquare } from 'lucide-react';
 
@@ -49,6 +50,7 @@ export const App: React.FC = () => {
   // Modals & Real-time
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showMoneyRainModal, setShowMoneyRainModal] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
   const [moneyRainDrop, setMoneyRainDrop] = useState<MoneyRainDrop | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
 
@@ -137,7 +139,7 @@ export const App: React.FC = () => {
       {/* Top Header */}
       <Header
         wallet={wallet}
-        onOpenDeposit={() => setActiveTab('wallet')}
+        onOpenDeposit={() => setShowDepositModal(true)}
         onOpenAdmin={() => setShowAdminModal(true)}
         pendingDepositsCount={0}
         language={language}
@@ -269,6 +271,7 @@ export const App: React.FC = () => {
               wallet={wallet}
               onRefreshWallet={refreshWallet}
               language={language}
+              currentUser={currentUser}
             />
           )}
 
@@ -335,6 +338,16 @@ export const App: React.FC = () => {
           language={language}
         />
       )}
+
+      {/* Fast In-Game Deposit Modal */}
+      <DepositModal
+        isOpen={showDepositModal}
+        onClose={() => setShowDepositModal(false)}
+        wallet={wallet}
+        onRefreshWallet={refreshWallet}
+        currentUser={currentUser}
+        language={language}
+      />
 
       {/* Cashier Admin Approval Console */}
       {showAdminModal && (
