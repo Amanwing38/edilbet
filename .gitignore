@@ -6,11 +6,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Production build outputs
-dist/
-client/dist/
-server/dist/
-
 # Local Environment & Secrets
 .env
 .env.local
