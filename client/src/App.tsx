@@ -3,6 +3,10 @@ import { io, Socket } from 'socket.io-client';
 import { Header } from './components/Header';
 import { Sidebar, NavTab } from './components/Sidebar';
 import { AviatorGame } from './components/AviatorGame';
+import { FastKenoGame } from './components/FastKenoGame';
+import { ChickenRoadGame } from './components/ChickenRoadGame';
+import { SlotGame } from './components/SlotGame';
+import { GamesLobby } from './components/GamesLobby';
 import { WalletView } from './components/WalletView';
 import { PromotionsView } from './components/PromotionsView';
 import { AffiliateView } from './components/AffiliateView';
@@ -21,6 +25,7 @@ interface CurrentUser {
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('games');
+  const [selectedGame, setSelectedGame] = useState<string>('aviator');
   const [language, setLanguage] = useState<'am' | 'en'>('am');
 
   // Active User State
@@ -149,15 +154,83 @@ export const App: React.FC = () => {
 
         {/* Main Content Viewport */}
         <main className="flex-1 p-3 sm:p-5 md:p-6 overflow-y-auto max-w-7xl mx-auto w-full">
-          {/* TAB 1: AVIATOR DIRECT PLAY (Default) */}
+          {/* TAB 1: ALL GAMES SUITE */}
           {activeTab === 'games' && (
-            <AviatorGame
-              socket={socket}
-              wallet={wallet}
-              onRefreshWallet={refreshWallet}
-              language={language}
-              currentUser={currentUser}
-            />
+            <div className="flex flex-col gap-3">
+              {/* Quick Game Switcher Header */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                {[
+                  { id: 'aviator', name: '✈️ Aviator', color: 'from-red-600 to-rose-600' },
+                  { id: 'fast-keno', name: '🎱 Fast Keno (80 Balls)', color: 'from-emerald-600 to-teal-700' },
+                  { id: 'chicken-road', name: '🐔 Chicken Road 2.0', color: 'from-amber-600 to-orange-600' },
+                  { id: 'crazy-777', name: '🎰 Crazy 777 Slots', color: 'from-purple-600 to-indigo-700' },
+                  { id: 'lobby', name: '🎮 All Games Lobby', color: 'from-blue-600 to-cyan-700' },
+                ].map((g) => (
+                  <button
+                    key={g.id}
+                    onClick={() => setSelectedGame(g.id)}
+                    className={`px-3.5 py-2 rounded-xl font-black text-xs shrink-0 transition-all flex items-center gap-1.5 ${
+                      selectedGame === g.id
+                        ? `bg-gradient-to-r ${g.color} text-white shadow-lg ring-1 ring-white/30 scale-102`
+                        : 'bg-[#141b27] text-gray-300 hover:bg-[#1c2637] border border-[#232f45]'
+                    }`}
+                  >
+                    <span>{g.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Game View: Aviator */}
+              {selectedGame === 'aviator' && (
+                <AviatorGame
+                  socket={socket}
+                  wallet={wallet}
+                  onRefreshWallet={refreshWallet}
+                  language={language}
+                  currentUser={currentUser}
+                />
+              )}
+
+              {/* Game View: Fast Keno */}
+              {selectedGame === 'fast-keno' && (
+                <FastKenoGame
+                  wallet={wallet}
+                  onRefreshWallet={refreshWallet}
+                  language={language}
+                />
+              )}
+
+              {/* Game View: Chicken Road */}
+              {selectedGame === 'chicken-road' && (
+                <ChickenRoadGame
+                  wallet={wallet}
+                  onRefreshWallet={refreshWallet}
+                  language={language}
+                />
+              )}
+
+              {/* Game View: Crazy 777 Slots */}
+              {(selectedGame === 'crazy-777' || selectedGame === 'slots') && (
+                <SlotGame
+                  wallet={wallet}
+                  onRefreshWallet={refreshWallet}
+                  language={language}
+                />
+              )}
+
+              {/* Game View: Full Interactive Lobby */}
+              {selectedGame === 'lobby' && (
+                <GamesLobby
+                  onSelectGame={(gameId) => {
+                    if (gameId === 'jet-x' || gameId === 'aviator') setSelectedGame('aviator');
+                    else if (gameId === 'fast-keno') setSelectedGame('fast-keno');
+                    else if (gameId === 'chicken-road') setSelectedGame('chicken-road');
+                    else setSelectedGame('crazy-777');
+                  }}
+                  language={language}
+                />
+              )}
+            </div>
           )}
 
           {/* TAB 2: RAFFLE */}
