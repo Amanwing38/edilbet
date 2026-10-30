@@ -1,9 +1,10 @@
 services:
   - type: web
-    name: edilbet-production
-    env: docker
+    name: edilbet
+    runtime: docker
     plan: free
     region: frankfurt
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: BOT_TOKEN
         value: 8891588751:AAGDl5JDnrmi5lhO8_56ap2ghzEGWwFACZI
