@@ -148,6 +148,8 @@ app.post('/api/wallet/withdraw', (req, res) => {
             amount: Number(amount),
             phone: phone || '0938749239'
         });
+        io.emit('wallet_updated', { userId, wallet: result.wallet });
+        (0, bot_js_1.notifyAdminNewWithdrawal)(result.transaction);
         res.json({ success: true, ...result });
     }
     catch (err) {
@@ -193,6 +195,7 @@ app.post('/api/games/keno/play', (req, res) => {
         if (evalResult.payout > 0) {
             finalWallet = walletService_js_1.WalletService.creditWin(userId, evalResult.payout, 'KENO_WIN', `Keno Win (${evalResult.matchedCount} hits)`);
         }
+        io.emit('wallet_updated', { userId, wallet: finalWallet });
         res.json({
             success: true,
             pickedNumbers,
@@ -309,6 +312,19 @@ app.post('/api/promotions/redeem', (req, res) => {
         const result = promotionService_js_1.PromotionService.redeemCoupon(userId, code);
         const wallet = walletService_js_1.WalletService.getOrCreateWallet(userId);
         res.json({ success: true, ...result, wallet });
+    }
+    catch (err) {
+        res.status(400).json({ success: false, error: err.message });
+    }
+});
+app.post('/api/promotions/claim-bonus', (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { amount, reason } = req.body;
+        const bonusNum = Number(amount) || 10;
+        const wallet = walletService_js_1.WalletService.creditWin(userId, bonusNum, 'MONEY_RAIN', reason || 'Bonus Reward');
+        io.emit('wallet_updated', { userId, wallet });
+        res.json({ success: true, wallet });
     }
     catch (err) {
         res.status(400).json({ success: false, error: err.message });

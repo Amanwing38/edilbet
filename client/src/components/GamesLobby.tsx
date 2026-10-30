@@ -4,9 +4,18 @@ import { Search, Crown, Ticket, RotateCcw, Coins, Sparkles, ChevronRight } from 
 interface GamesLobbyProps {
   onSelectGame: (gameId: string) => void;
   language: 'am' | 'en';
+  onOpenLuckySpin?: () => void;
+  onOpenShamo?: () => void;
+  onOpenCoupon?: () => void;
 }
 
-export const GamesLobby: React.FC<GamesLobbyProps> = ({ onSelectGame, language }) => {
+export const GamesLobby: React.FC<GamesLobbyProps> = ({
+  onSelectGame,
+  language,
+  onOpenLuckySpin,
+  onOpenShamo,
+  onOpenCoupon
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Recent Big Wins Mock/Live Data
@@ -141,7 +150,7 @@ export const GamesLobby: React.FC<GamesLobbyProps> = ({ onSelectGame, language }
       <div className="grid grid-cols-4 gap-2 sm:gap-3">
         {/* Card 1: Lucky Spin */}
         <div
-          onClick={() => onSelectGame('crazy-777')}
+          onClick={() => onOpenLuckySpin ? onOpenLuckySpin() : onSelectGame('crazy-777')}
           className="bg-[#121924] hover:bg-[#182333] border border-[#1e293b] rounded-2xl p-2.5 sm:p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all transform active:scale-95 shadow-md relative"
         >
           <div className="w-10 h-10 rounded-full bg-[#1b2638] flex items-center justify-center text-xl shadow-inner border border-emerald-500/30">
@@ -154,7 +163,7 @@ export const GamesLobby: React.FC<GamesLobbyProps> = ({ onSelectGame, language }
 
         {/* Card 2: Shamo (With Red NEW Badge) */}
         <div
-          onClick={() => onSelectGame('fast-keno')}
+          onClick={() => onOpenShamo ? onOpenShamo() : onSelectGame('fast-keno')}
           className="bg-[#121924] hover:bg-[#182333] border border-[#1e293b] rounded-2xl p-2.5 sm:p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all transform active:scale-95 shadow-md relative"
         >
           <span className="absolute top-1.5 right-1.5 px-1 py-0.2 rounded bg-red-600 text-[8px] font-black text-white uppercase">
@@ -170,7 +179,7 @@ export const GamesLobby: React.FC<GamesLobbyProps> = ({ onSelectGame, language }
 
         {/* Card 3: Coupon */}
         <div
-          onClick={() => onSelectGame('promotions')}
+          onClick={() => onOpenCoupon ? onOpenCoupon() : onSelectGame('promotions')}
           className="bg-[#121924] hover:bg-[#182333] border border-[#1e293b] rounded-2xl p-2.5 sm:p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all transform active:scale-95 shadow-md relative"
         >
           <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[#00E676] flex items-center justify-center text-xl">

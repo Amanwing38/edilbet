@@ -13,6 +13,9 @@ import { AffiliateView } from './components/AffiliateView';
 import { MoneyRainModal } from './components/MoneyRainModal';
 import { AdminCashierModal } from './components/AdminCashierModal';
 import { DepositModal } from './components/DepositModal';
+import { LuckySpinModal } from './components/LuckySpinModal';
+import { ShamoModal } from './components/ShamoModal';
+import { CouponModal } from './components/CouponModal';
 import { UserWallet, MoneyRainDrop } from './types';
 import { Ticket, Phone, Globe, ShieldCheck, MessageSquare } from 'lucide-react';
 
@@ -51,6 +54,9 @@ export const App: React.FC = () => {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showMoneyRainModal, setShowMoneyRainModal] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showLuckySpinModal, setShowLuckySpinModal] = useState(false);
+  const [showShamoModal, setShowShamoModal] = useState(false);
+  const [showCouponModal, setShowCouponModal] = useState(false);
   const [moneyRainDrop, setMoneyRainDrop] = useState<MoneyRainDrop | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
 
@@ -178,6 +184,9 @@ export const App: React.FC = () => {
                     else setSelectedGame('crazy-777');
                   }}
                   language={language}
+                  onOpenLuckySpin={() => setShowLuckySpinModal(true)}
+                  onOpenShamo={() => setShowShamoModal(true)}
+                  onOpenCoupon={() => setShowCouponModal(true)}
                 />
               )}
 
@@ -199,6 +208,8 @@ export const App: React.FC = () => {
                   wallet={wallet}
                   onRefreshWallet={refreshWallet}
                   language={language}
+                  currentUser={currentUser}
+                  onBack={() => setSelectedGame('lobby')}
                 />
               )}
 
@@ -345,6 +356,36 @@ export const App: React.FC = () => {
       <DepositModal
         isOpen={showDepositModal}
         onClose={() => setShowDepositModal(false)}
+        wallet={wallet}
+        onRefreshWallet={refreshWallet}
+        currentUser={currentUser}
+        language={language}
+      />
+
+      {/* Lucky Spin Wheel Modal */}
+      <LuckySpinModal
+        isOpen={showLuckySpinModal}
+        onClose={() => setShowLuckySpinModal(false)}
+        wallet={wallet}
+        onRefreshWallet={refreshWallet}
+        currentUser={currentUser}
+        language={language}
+      />
+
+      {/* Shamo Mystery Chests Modal */}
+      <ShamoModal
+        isOpen={showShamoModal}
+        onClose={() => setShowShamoModal(false)}
+        wallet={wallet}
+        onRefreshWallet={refreshWallet}
+        currentUser={currentUser}
+        language={language}
+      />
+
+      {/* Coupon Promo Code Modal */}
+      <CouponModal
+        isOpen={showCouponModal}
+        onClose={() => setShowCouponModal(false)}
         wallet={wallet}
         onRefreshWallet={refreshWallet}
         currentUser={currentUser}

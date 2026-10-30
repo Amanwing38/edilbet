@@ -6,12 +6,20 @@ interface FastKenoGameProps {
   wallet: UserWallet;
   onRefreshWallet: () => void;
   language: 'am' | 'en';
+  currentUser?: {
+    id: string;
+    username: string;
+    firstName: string;
+  };
+  onBack?: () => void;
 }
 
 export const FastKenoGame: React.FC<FastKenoGameProps> = ({
   wallet,
   onRefreshWallet,
-  language
+  language,
+  currentUser,
+  onBack
 }) => {
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [stake, setStake] = useState<number>(20);
@@ -71,7 +79,10 @@ export const FastKenoGame: React.FC<FastKenoGameProps> = ({
     try {
       const res = await fetch('/api/games/keno/play', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || 'EB-741891'
+        },
         body: JSON.stringify({
           pickedNumbers: selectedNumbers,
           stake

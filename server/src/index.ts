@@ -11,7 +11,7 @@ import { ProvablyFair } from './games/provablyFair.js';
 import { AviatorRoom } from './games/aviatorRoom.js';
 import { PromotionService } from './services/promotionService.js';
 import { AffiliateService } from './services/affiliateService.js';
-import { launchBot, notifyAdminNewDeposit, registerSocketEmitter } from './bot.js';
+import { launchBot, notifyAdminNewDeposit, notifyAdminNewWithdrawal, registerSocketEmitter } from './bot.js';
 
 process.on('uncaughtException', (err) => {
   console.error('Server Uncaught Exception (recovering):', err.message);
@@ -157,6 +157,8 @@ app.post('/api/wallet/withdraw', (req, res) => {
       amount: Number(amount),
       phone: phone || '0938749239'
     });
+    io.emit('wallet_updated', { userId, wallet: result.wallet });
+    notifyAdminNewWithdrawal(result.transaction);
     res.json({ success: true, ...result });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
@@ -206,6 +208,7 @@ app.post('/api/games/keno/play', (req, res) => {
     if (evalResult.payout > 0) {
       finalWallet = WalletService.creditWin(userId, evalResult.payout, 'KENO_WIN', `Keno Win (${evalResult.matchedCount} hits)`);
     }
+    io.emit('wallet_updated', { userId, wallet: finalWallet });
 
     res.json({
       success: true,
@@ -331,6 +334,19 @@ app.post('/api/promotions/redeem', (req, res) => {
     const result = PromotionService.redeemCoupon(userId, code);
     const wallet = WalletService.getOrCreateWallet(userId);
     res.json({ success: true, ...result, wallet });
+  } catch (err: any) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/promotions/claim-bonus', (req, res) => {
+  try {
+    const userId = getUserId(req);
+    const { amount, reason } = req.body;
+    const bonusNum = Number(amount) || 10;
+    const wallet = WalletService.creditWin(userId, bonusNum, 'MONEY_RAIN', reason || 'Bonus Reward');
+    io.emit('wallet_updated', { userId, wallet });
+    res.json({ success: true, wallet });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }

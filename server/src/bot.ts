@@ -32,6 +32,26 @@ export async function notifyAdminNewDeposit(order: any) {
   }).catch((e) => console.error('Error notifying admin of deposit:', e.message));
 }
 
+export async function notifyAdminNewWithdrawal(tx: any) {
+  if (!botInstance) return;
+  const adminChatId = 8148611275;
+  const keyboard = new InlineKeyboard()
+    .text('✅ Paid / Dispatched', `paid_with:${tx.id}`)
+    .text('❌ Reject & Refund', `reject_with:${tx.id}`);
+
+  const msg = `💸 **New Withdrawal Request!**\n\n` +
+    `• **Order ID**: \`${tx.orderNumber}\`\n` +
+    `• **Player ID**: \`${tx.userId}\` (${tx.username})\n` +
+    `• **Amount**: **${Math.abs(tx.amount)} ETB**\n` +
+    `• **Send To Telebirr**: \`${tx.recipientPhone || tx.senderPhone || '0938749239'}\`\n\n` +
+    `Please transfer via Telebirr app, then tap Paid below:`;
+
+  await botInstance.api.sendMessage(adminChatId, msg, {
+    parse_mode: 'Markdown',
+    reply_markup: keyboard
+  }).catch((e) => console.error('Error notifying admin of withdrawal:', e.message));
+}
+
 export function updateBotWebAppUrl(url: string) {
   currentWebAppHttpsUrl = url;
   if (botInstance) {
@@ -288,6 +308,29 @@ export function launchBot(token: string, initialUrl?: string) {
       } catch (err: any) {
         await ctx.answerCallbackQuery({ text: err.message, show_alert: true });
       }
+    });
+
+    bot.callbackQuery(/^paid_with:(.+)$/, async (ctx) => {
+      const txId = ctx.match[1];
+      await ctx.answerCallbackQuery({ text: 'Withdrawal marked as Paid!' });
+      await ctx.editMessageText(
+        `✅ **Withdrawal Paid & Dispatched!**\n\n` +
+        `• **Transaction ID**: \`${txId}\`\n` +
+        `• **Status**: Completed\n` +
+        `• **Handled By**: @${ctx.from.username || ctx.from.first_name}`,
+        { parse_mode: 'Markdown' }
+      );
+    });
+
+    bot.callbackQuery(/^reject_with:(.+)$/, async (ctx) => {
+      const txId = ctx.match[1];
+      await ctx.answerCallbackQuery({ text: 'Withdrawal rejected.' });
+      await ctx.editMessageText(
+        `❌ **Withdrawal Rejected & Balance Retained!**\n\n` +
+        `• **Transaction ID**: \`${txId}\`\n` +
+        `• **Status**: Cancelled`,
+        { parse_mode: 'Markdown' }
+      );
     });
 
     bot.start({
