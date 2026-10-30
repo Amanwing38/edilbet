@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
@@ -42,11 +43,15 @@ const aviatorRoom = new AviatorRoom(io);
 aviatorRoom.start();
 
 // Launch Telegram Bot (@EdilBetET_bot)
-const BOT_TOKEN = process.env.BOT_TOKEN || '8891588751:AAHMOttSv8O3K9i4X92t6-EcVYRJqMtcZe4';
-launchBot(BOT_TOKEN);
-registerSocketEmitter((userId, wallet) => {
-  io.emit('wallet_updated', { userId, wallet });
-});
+const BOT_TOKEN = process.env.BOT_TOKEN || '';
+if (BOT_TOKEN) {
+  launchBot(BOT_TOKEN);
+  registerSocketEmitter((userId, wallet) => {
+    io.emit('wallet_updated', { userId, wallet });
+  });
+} else {
+  console.warn('⚠️ BOT_TOKEN is not defined in environment variables. Bot launch skipped.');
+}
 
 // Helper to get active user ID from request
 function getUserId(req: express.Request): string {

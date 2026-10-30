@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+require("dotenv/config");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const http_1 = __importDefault(require("http"));
@@ -41,11 +42,16 @@ app.use(express_1.default.static(clientDistPath));
 const aviatorRoom = new aviatorRoom_js_1.AviatorRoom(io);
 aviatorRoom.start();
 // Launch Telegram Bot (@EdilBetET_bot)
-const BOT_TOKEN = process.env.BOT_TOKEN || '8891588751:AAHMOttSv8O3K9i4X92t6-EcVYRJqMtcZe4';
-(0, bot_js_1.launchBot)(BOT_TOKEN);
-(0, bot_js_1.registerSocketEmitter)((userId, wallet) => {
-    io.emit('wallet_updated', { userId, wallet });
-});
+const BOT_TOKEN = process.env.BOT_TOKEN || '';
+if (BOT_TOKEN) {
+    (0, bot_js_1.launchBot)(BOT_TOKEN);
+    (0, bot_js_1.registerSocketEmitter)((userId, wallet) => {
+        io.emit('wallet_updated', { userId, wallet });
+    });
+}
+else {
+    console.warn('⚠️ BOT_TOKEN is not defined in environment variables. Bot launch skipped.');
+}
 // Helper to get active user ID from request
 function getUserId(req) {
     const headerId = req.headers['x-user-id'];
