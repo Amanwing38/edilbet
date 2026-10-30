@@ -185,6 +185,31 @@ export class AviatorRoom {
     return bet;
   }
 
+  public cancelBet(betId: string, userId?: string): AviatorBet {
+    let bet = this.currentBets.get(betId);
+    if (!bet && userId) {
+      for (const b of this.currentBets.values()) {
+        if (b.userId === userId && !b.cashedOut) {
+          bet = b;
+          break;
+        }
+      }
+    }
+    if (!bet) {
+      throw new Error('Bet not found to cancel.');
+    }
+    if (this.currentRound?.state !== 'BETTING') {
+      throw new Error('Bets can only be cancelled before takeoff.');
+    }
+    this.currentBets.delete(bet.id);
+
+    // Refund stake back to user's wallet
+    WalletService.creditWin(bet.userId, bet.stake, 'AVIATOR_REFUND', `Aviator Bet Cancelled Refund`);
+
+    this.io.emit('aviator_bet_cancelled', { id: bet.id, userId: bet.userId });
+    return bet;
+  }
+
   public executeCashout(betId: string, currentMult: number, userId?: string): AviatorBet {
     let bet = this.currentBets.get(betId);
 

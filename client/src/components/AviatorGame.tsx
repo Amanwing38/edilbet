@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Socket } from 'socket.io-client';
-import { Plane, ShieldCheck, History, Users, ArrowUpRight } from 'lucide-react';
+import { Plane, ShieldCheck, History, Users, ArrowUpRight, TrendingUp } from 'lucide-react';
 import { AviatorLiveBet, UserWallet } from '../types';
 
 interface AviatorGameProps {
@@ -41,6 +41,52 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
   const [myBetId1, setMyBetId1] = useState<string | null>(null);
   const [cashedOut1, setCashedOut1] = useState(false);
   const [cashoutWin1, setCashoutWin1] = useState<number | null>(null);
+
+  // Player Bet Panel 2 (Dual Order Support)
+  const [stake2, setStake2] = useState(10);
+  const [autoCashout2, setAutoCashout2] = useState<string>('1.50');
+  const [isAutoCashout2, setIsAutoCashout2] = useState(false);
+  const [hasBet2, setHasBet2] = useState(false);
+  const [myBetId2, setMyBetId2] = useState<string | null>(null);
+  const [cashedOut2, setCashedOut2] = useState(false);
+  const [cashoutWin2, setCashoutWin2] = useState<number | null>(null);
+
+  // Synchronized state ref for fast tick socket operations
+  const stateRef = useRef({
+    stake1,
+    hasBet1,
+    cashedOut1,
+    isAutoCashout1,
+    autoCashout1,
+    myBetId1,
+    stake2,
+    hasBet2,
+    cashedOut2,
+    isAutoCashout2,
+    autoCashout2,
+    myBetId2,
+    gameState,
+    multiplier
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      stake1,
+      hasBet1,
+      cashedOut1,
+      isAutoCashout1,
+      autoCashout1,
+      myBetId1,
+      stake2,
+      hasBet2,
+      cashedOut2,
+      isAutoCashout2,
+      autoCashout2,
+      myBetId2,
+      gameState,
+      multiplier
+    };
+  });
 
   // Canvas Animation Frame
   useEffect(() => {
@@ -102,31 +148,39 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
         ctx.fill();
         ctx.restore();
 
-        // Draw Red Propeller Airplane
+        // Animated Red Aviator Propeller Plane
         ctx.save();
         ctx.translate(planeX, planeY);
-        ctx.rotate(-0.15 - progress * 0.2);
+        const angle = -0.3 + Math.sin(t * 3) * 0.05;
+        ctx.rotate(angle);
 
         // Plane Body
         ctx.fillStyle = '#E50914';
+        ctx.shadowColor = '#FF3366';
+        ctx.shadowBlur = 10;
         ctx.beginPath();
-        ctx.ellipse(0, 0, 24, 8, 0, 0, Math.PI * 2);
+        ctx.moveTo(25, 0);
+        ctx.lineTo(-20, -10);
+        ctx.lineTo(-20, 10);
+        ctx.closePath();
         ctx.fill();
 
         // Wings
-        ctx.fillStyle = '#b80710';
+        ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
-        ctx.moveTo(-6, -14);
-        ctx.lineTo(6, -2);
-        ctx.lineTo(0, 8);
-        ctx.lineTo(-10, -6);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-12, -22);
+        ctx.lineTo(-2, -22);
+        ctx.lineTo(8, 0);
+        ctx.closePath();
         ctx.fill();
 
         // Propeller blur
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.beginPath();
-        ctx.ellipse(24, 0, 3, 12, Math.sin(t * 10), 0, Math.PI * 2);
+        ctx.ellipse(26, 0, 3, 14 + Math.sin(t * 20) * 3, 0, 0, Math.PI * 2);
         ctx.fill();
+
         ctx.restore();
       }
 
@@ -155,10 +209,17 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
     socket.on('aviator_countdown', (data: { seconds: number }) => {
       setGameState('BETTING');
       setCountdown(data.seconds);
+
+      // Reset cashout statuses for new round
       setCashedOut1(false);
       setCashoutWin1(null);
       setHasBet1(false);
       setMyBetId1(null);
+
+      setCashedOut2(false);
+      setCashoutWin2(null);
+      setHasBet2(false);
+      setMyBetId2(null);
     });
 
     socket.on('aviator_flight_start', (data: any) => {
@@ -170,6 +231,29 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
     socket.on('aviator_tick', (data: { multiplier: number }) => {
       setGameState('FLYING');
       setMultiplier(data.multiplier);
+
+      const st = stateRef.current;
+      // Auto Cashout Panel 1
+      if (
+        st.isAutoCashout1 &&
+        st.hasBet1 &&
+        !st.cashedOut1 &&
+        parseFloat(st.autoCashout1) > 1.0 &&
+        data.multiplier >= parseFloat(st.autoCashout1)
+      ) {
+        handleCashout1();
+      }
+
+      // Auto Cashout Panel 2
+      if (
+        st.isAutoCashout2 &&
+        st.hasBet2 &&
+        !st.cashedOut2 &&
+        parseFloat(st.autoCashout2) > 1.0 &&
+        data.multiplier >= parseFloat(st.autoCashout2)
+      ) {
+        handleCashout2();
+      }
     });
 
     socket.on('aviator_crashed', (data: { crashMultiplier: number; history: number[]; bets: any[] }) => {
@@ -179,33 +263,62 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
       setLiveBets(data.bets || []);
       setHasBet1(false);
       setMyBetId1(null);
+      setHasBet2(false);
+      setMyBetId2(null);
       onRefreshWallet();
     });
 
     socket.on('aviator_bet_confirmed', (bet: AviatorLiveBet) => {
       setLiveBets((prev) => [bet, ...prev]);
-      if (bet.id) {
+      if (bet.slot === 2) {
+        setMyBetId2(bet.id);
+      } else {
         setMyBetId1(bet.id);
       }
     });
 
+    socket.on('aviator_bet_cancelled_success', (data: { betId: string; slot?: number }) => {
+      if (data.slot === 2) {
+        setHasBet2(false);
+        setMyBetId2(null);
+      } else {
+        setHasBet1(false);
+        setMyBetId1(null);
+      }
+      onRefreshWallet();
+    });
+
     socket.on('aviator_bet_cashed_out', (bet: AviatorLiveBet) => {
       setLiveBets((prev) => prev.map((b) => (b.id === bet.id ? bet : b)));
-      if (bet.id === myBetId1 || (currentUser?.id && bet.userId === currentUser.id)) {
+      if (bet.id === myBetId1) {
         setCashedOut1(true);
         setCashoutWin1(bet.payout);
+        onRefreshWallet();
+      } else if (bet.id === myBetId2) {
+        setCashedOut2(true);
+        setCashoutWin2(bet.payout);
         onRefreshWallet();
       }
     });
 
     socket.on('aviator_cashout_success', (bet: any) => {
-      setCashedOut1(true);
-      setCashoutWin1(bet.payout);
+      if (bet.slot === 2 || bet.id === myBetId2) {
+        setCashedOut2(true);
+        setCashoutWin2(bet.payout);
+      } else {
+        setCashedOut1(true);
+        setCashoutWin1(bet.payout);
+      }
       onRefreshWallet();
     });
 
-    socket.on('aviator_error', (data: { message: string }) => {
+    socket.on('aviator_error', (data: { message: string; slot?: number }) => {
       console.warn('Aviator server notice:', data?.message);
+      if (data.slot === 2) {
+        setHasBet2(false);
+      } else {
+        setHasBet1(false);
+      }
     });
 
     return () => {
@@ -215,24 +328,25 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
       socket.off('aviator_tick');
       socket.off('aviator_crashed');
       socket.off('aviator_bet_confirmed');
+      socket.off('aviator_bet_cancelled_success');
       socket.off('aviator_bet_cashed_out');
       socket.off('aviator_cashout_success');
       socket.off('aviator_error');
     };
-  }, [socket, onRefreshWallet, myBetId1, currentUser?.id]);
+  }, [socket, onRefreshWallet, myBetId1, myBetId2]);
 
-  // Handle Bet 1 Placement
+  // Handle Bet 1 Actions
   const handlePlaceBet1 = () => {
-    if (!socket || hasBet1) return;
+    if (!socket || hasBet1 || gameState !== 'BETTING') return;
     if (wallet.availableBalance < stake1) {
       alert(`Insufficient balance. You need ${stake1} ETB.`);
       return;
     }
-
     setHasBet1(true);
     setCashedOut1(false);
     setCashoutWin1(null);
     socket.emit('aviator_place_bet', {
+      slot: 1,
       userId: currentUser?.id,
       username: currentUser?.username || currentUser?.firstName || 'Player',
       stake: stake1,
@@ -240,7 +354,17 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
     });
   };
 
-  // Handle Manual Cashout 1
+  const handleCancelBet1 = () => {
+    if (!socket || !hasBet1 || gameState !== 'BETTING') return;
+    socket.emit('aviator_cancel_bet', {
+      slot: 1,
+      betId: myBetId1 || '',
+      userId: currentUser?.id
+    });
+    setHasBet1(false);
+    setMyBetId1(null);
+  };
+
   const handleCashout1 = (e?: React.SyntheticEvent) => {
     if (e) {
       e.preventDefault();
@@ -248,15 +372,262 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
     }
     if (!socket || !hasBet1 || cashedOut1 || gameState !== 'FLYING') return;
 
-    // Optimistically record cashout state
     setCashedOut1(true);
-    setCashoutWin1(stake1 * multiplier);
+    const winAmt = stake1 * multiplier;
+    setCashoutWin1(winAmt);
 
     socket.emit('aviator_cash_out', {
+      slot: 1,
       betId: myBetId1 || 'active',
       userId: currentUser?.id,
       multiplier
     });
+  };
+
+  // Handle Bet 2 Actions (Dual Bet Panel)
+  const handlePlaceBet2 = () => {
+    if (!socket || hasBet2 || gameState !== 'BETTING') return;
+    if (wallet.availableBalance < stake2) {
+      alert(`Insufficient balance. You need ${stake2} ETB.`);
+      return;
+    }
+    setHasBet2(true);
+    setCashedOut2(false);
+    setCashoutWin2(null);
+    socket.emit('aviator_place_bet', {
+      slot: 2,
+      userId: currentUser?.id,
+      username: currentUser?.username || currentUser?.firstName || 'Player',
+      stake: stake2,
+      autoCashout: isAutoCashout2 ? parseFloat(autoCashout2) : undefined
+    });
+  };
+
+  const handleCancelBet2 = () => {
+    if (!socket || !hasBet2 || gameState !== 'BETTING') return;
+    socket.emit('aviator_cancel_bet', {
+      slot: 2,
+      betId: myBetId2 || '',
+      userId: currentUser?.id
+    });
+    setHasBet2(false);
+    setMyBetId2(null);
+  };
+
+  const handleCashout2 = (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!socket || !hasBet2 || cashedOut2 || gameState !== 'FLYING') return;
+
+    setCashedOut2(true);
+    const winAmt = stake2 * multiplier;
+    setCashoutWin2(winAmt);
+
+    socket.emit('aviator_cash_out', {
+      slot: 2,
+      betId: myBetId2 || 'active',
+      userId: currentUser?.id,
+      multiplier
+    });
+  };
+
+  // Total Real-Time Gain Calculation across active bets
+  const totalLivePayout =
+    (hasBet1 && !cashedOut1 ? stake1 * multiplier : 0) +
+    (hasBet2 && !cashedOut2 ? stake2 * multiplier : 0);
+
+  const totalLiveProfit =
+    (hasBet1 && !cashedOut1 ? stake1 * multiplier - stake1 : 0) +
+    (hasBet2 && !cashedOut2 ? stake2 * multiplier - stake2 : 0);
+
+  const isUserFlying = (hasBet1 && !cashedOut1) || (hasBet2 && !cashedOut2);
+
+  // Render Individual Order Panel
+  const renderBetPanel = (slot: 1 | 2) => {
+    const stake = slot === 1 ? stake1 : stake2;
+    const setStake = slot === 1 ? setStake1 : setStake2;
+    const autoCashout = slot === 1 ? autoCashout1 : autoCashout2;
+    const setAutoCashout = slot === 1 ? setAutoCashout1 : setAutoCashout2;
+    const isAutoCashout = slot === 1 ? isAutoCashout1 : isAutoCashout2;
+    const setIsAutoCashout = slot === 1 ? setIsAutoCashout1 : setIsAutoCashout2;
+    const hasBet = slot === 1 ? hasBet1 : hasBet2;
+    const cashedOut = slot === 1 ? cashedOut1 : cashedOut2;
+    const cashoutWin = slot === 1 ? cashoutWin1 : cashoutWin2;
+    const handlePlace = slot === 1 ? handlePlaceBet1 : handlePlaceBet2;
+    const handleCancel = slot === 1 ? handleCancelBet1 : handleCancelBet2;
+    const handleCash = slot === 1 ? handleCashout1 : handleCashout2;
+
+    const liveGain = stake * multiplier;
+    const liveProfit = liveGain - stake;
+
+    return (
+      <div className="bg-[#121824] border border-[#1e283b] rounded-2xl p-3 sm:p-4 flex flex-col gap-2.5 shadow-lg relative overflow-hidden transition-all">
+        {/* Top bar: Order Title & Auto Cashout */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                hasBet
+                  ? gameState === 'FLYING'
+                    ? 'bg-amber-400'
+                    : 'bg-red-500'
+                  : 'bg-[#00E676]'
+              } animate-pulse`}
+            />
+            <span className="text-xs font-black text-gray-200 uppercase tracking-wider">
+              {language === 'am' ? `መወራረጃ ${slot}` : `Order ${slot}`}
+            </span>
+            <span className="text-[10px] text-gray-500 font-mono">
+              ({slot === 1 ? 'Main' : 'Dual'})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-gray-400 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isAutoCashout}
+                onChange={(e) => setIsAutoCashout(e.target.checked)}
+                disabled={hasBet}
+                className="accent-[#00E676] w-3.5 h-3.5 rounded cursor-pointer"
+              />
+              <span>Auto</span>
+            </label>
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={autoCashout}
+                onChange={(e) => setAutoCashout(e.target.value)}
+                disabled={!isAutoCashout || hasBet}
+                className="w-14 h-6 rounded-lg bg-[#0b0e14] border border-[#222e42] px-1 text-xs font-mono font-bold text-center text-white disabled:opacity-40"
+              />
+              <span className="text-xs text-gray-400 font-bold">x</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Controls Grid: Left is Stake adjustment, Right is Action Button */}
+        <div className="grid grid-cols-2 gap-2.5 items-stretch">
+          {/* Left Column: Stake +/- and Quick Chips */}
+          <div className="flex flex-col justify-between gap-1.5">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setStake(Math.max(10, stake - 10))}
+                disabled={hasBet}
+                className="w-9 h-9 rounded-xl bg-[#1a2333] hover:bg-[#232f45] border border-[#2b3a54] text-white font-black text-base disabled:opacity-40"
+              >
+                -
+              </button>
+              <input
+                type="number"
+                value={stake}
+                onChange={(e) => setStake(Math.max(10, Number(e.target.value)))}
+                disabled={hasBet}
+                className="w-full h-9 rounded-xl bg-[#0b0e14] border border-[#222e42] px-1 font-mono font-bold text-center text-white focus:outline-none focus:border-[#00E676] text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => setStake(stake + 10)}
+                disabled={hasBet}
+                className="w-9 h-9 rounded-xl bg-[#1a2333] hover:bg-[#232f45] border border-[#2b3a54] text-white font-black text-base disabled:opacity-40"
+              >
+                +
+              </button>
+            </div>
+
+            {/* Quick Chips */}
+            <div className="grid grid-cols-4 gap-1">
+              {[10, 20, 50, 100].map((val) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setStake(val)}
+                  disabled={hasBet}
+                  className={`py-1 rounded-lg text-xs font-bold transition-all ${
+                    stake === val
+                      ? 'bg-[#00E676]/20 border border-[#00E676] text-[#00E676]'
+                      : 'bg-[#182130] text-gray-300 hover:bg-[#202c40] border border-[#243147]'
+                  }`}
+                >
+                  {val}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Column: Dynamic Action Button */}
+          <div className="flex flex-col">
+            {!hasBet ? (
+              /* State 1: GREEN BET BUTTON (Default before placing order) */
+              <button
+                type="button"
+                onClick={handlePlace}
+                disabled={gameState !== 'BETTING'}
+                className="w-full h-full min-h-[72px] rounded-2xl bg-gradient-to-r from-[#00c853] to-[#00E676] hover:from-[#00b248] hover:to-[#00d66c] text-black font-black tracking-wider uppercase shadow-xl shadow-[#00E676]/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed transform active:scale-95 flex flex-col items-center justify-center gap-0.5 leading-tight"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Plane className="w-4 h-4 fill-black" />
+                  <span className="text-base font-black">BET</span>
+                </div>
+                <span className="text-xs font-black">{stake} ETB</span>
+              </button>
+            ) : gameState === 'BETTING' ? (
+              /* State 2: VIBRANT RED BUTTON (Immediately turns RED when order is placed during countdown!) */
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="w-full h-full min-h-[72px] rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-700 hover:to-rose-700 text-white font-black tracking-wider uppercase shadow-xl shadow-red-600/40 border border-red-400/50 transition-all transform active:scale-95 flex flex-col items-center justify-center gap-0.5 leading-tight animate-pulse"
+              >
+                <span className="text-[10px] font-extrabold uppercase tracking-wide text-red-100">
+                  WAITING FOR TAKEOFF
+                </span>
+                <span className="text-sm font-black text-white">
+                  ✕ CANCEL
+                </span>
+                <span className="text-[11px] font-extrabold text-red-200">
+                  {stake} ETB REFUND
+                </span>
+              </button>
+            ) : cashedOut ? (
+              /* State 3: EMERALD GREEN WON BUTTON */
+              <div className="w-full h-full min-h-[72px] rounded-2xl bg-gradient-to-r from-emerald-500 to-[#00E676] text-black font-black tracking-wider uppercase shadow-xl shadow-[#00E676]/40 flex flex-col items-center justify-center leading-tight">
+                <span className="text-[11px] font-black uppercase tracking-wider">✓ CASHED OUT</span>
+                <span className="text-base font-black">
+                  +{(cashoutWin || liveGain).toFixed(2)} ETB
+                </span>
+              </div>
+            ) : gameState === 'FLYING' ? (
+              /* State 4: GOLD/AMBER CASH OUT WITH REAL-TIME LIVE GAINS BEFORE PLANE IS DOWN */
+              <button
+                type="button"
+                onClick={handleCash}
+                onTouchEnd={handleCash}
+                className="w-full h-full min-h-[72px] rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-600 hover:to-yellow-500 text-black font-black tracking-wider uppercase shadow-xl shadow-amber-400/50 transition-all transform active:scale-95 flex flex-col items-center justify-center leading-tight ring-2 ring-yellow-300 animate-pulse cursor-pointer"
+              >
+                <span className="text-[10px] font-black tracking-wider uppercase text-amber-950">
+                  CASH OUT
+                </span>
+                <span className="text-lg font-black text-black">
+                  {liveGain.toFixed(2)} ETB
+                </span>
+                <span className="text-[10px] font-black text-emerald-950 bg-yellow-300/70 px-1.5 py-0.5 rounded-full">
+                  +{liveProfit.toFixed(2)} ETB GAIN
+                </span>
+              </button>
+            ) : (
+              /* State 5: Plane Crashed */
+              <div className="w-full h-full min-h-[72px] rounded-2xl bg-[#1b2332] text-gray-400 font-black tracking-wider uppercase flex flex-col items-center justify-center leading-tight opacity-60">
+                <span className="text-xs font-black text-red-400">FLEW AWAY</span>
+                <span className="text-[11px] font-bold text-gray-500">{stake} ETB</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -298,15 +669,15 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
 
       {/* Main Game Stage + Live Bets */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Canvas & Multiplier Screen (3 Cols) */}
-        <div className="lg:col-span-3 flex flex-col gap-4">
-          <div className="relative w-full h-[320px] sm:h-[400px] bg-gradient-to-b from-[#0b0e14] via-[#101622] to-[#0d131e] border border-[#1e283b] rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center">
-            {/* HTML5 Canvas */}
+        {/* Aviator Flight Arena + Controls (3 Cols) */}
+        <div className="lg:col-span-3 flex flex-col gap-3">
+          {/* Flight Screen Canvas */}
+          <div className="relative w-full h-[260px] sm:h-[320px] md:h-[360px] bg-[#0b0e14] border border-[#1e283b] rounded-3xl overflow-hidden flex items-center justify-center shadow-2xl">
             <canvas
               ref={canvasRef}
               width={800}
-              height={400}
-              className="absolute inset-0 w-full h-full pointer-events-none"
+              height={360}
+              className="absolute inset-0 w-full h-full object-cover"
             />
 
             {/* Central Multiplier / Status Overlay */}
@@ -334,6 +705,22 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
                   <span className="text-6xl sm:text-7xl md:text-8xl font-black tracking-tighter text-white drop-shadow-[0_0_35px_rgba(255,255,255,0.4)]">
                     {multiplier.toFixed(2)}x
                   </span>
+
+                  {/* Real-Time Live Gain Display Before Plane is Down */}
+                  {isUserFlying && (
+                    <div className="mt-3 px-4 py-1.5 rounded-2xl bg-amber-500/20 border border-amber-400/50 backdrop-blur-md flex items-center gap-2 shadow-lg shadow-amber-500/20 animate-pulse">
+                      <TrendingUp className="w-4 h-4 text-amber-300" />
+                      <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                        {language === 'am' ? 'የሚያገኙት ትርፍ:' : 'Current Win:'}
+                      </span>
+                      <span className="text-base font-black text-amber-300 font-mono">
+                        {totalLivePayout.toFixed(2)} ETB
+                      </span>
+                      <span className="text-xs font-bold text-emerald-400 font-mono">
+                        (+{totalLiveProfit.toFixed(2)} ETB)
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -350,124 +737,19 @@ export const AviatorGame: React.FC<AviatorGameProps> = ({
             </div>
 
             {/* In-game Win Toast */}
-            {cashedOut1 && cashoutWin1 && (
+            {(cashedOut1 || cashedOut2) && (cashoutWin1 || cashoutWin2) && (
               <div className="absolute top-6 z-20 px-6 py-2.5 rounded-2xl bg-[#00E676] text-black font-black text-sm tracking-wide shadow-xl shadow-[#00E676]/40 flex items-center gap-2 animate-bounce">
-                <span>YOU WON! +{cashoutWin1.toFixed(2)} ETB</span>
+                <span>
+                  YOU WON! +{((cashoutWin1 || 0) + (cashoutWin2 || 0)).toFixed(2)} ETB
+                </span>
               </div>
             )}
           </div>
 
-          {/* Bet Controls (Responsive Grid) */}
-          <div className="bg-[#121824] border border-[#1e283b] rounded-3xl p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-5 shadow-lg">
-            {/* Stake Quick Buttons */}
-            <div className="flex flex-col gap-2 w-full md:w-1/2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-400">
-                  {language === 'am' ? 'መወራረጃ (ብር):' : 'Bet Amount (ETB):'}
-                </span>
-                <span className="text-xs font-semibold text-gray-400 font-mono">
-                  Balance: {wallet.availableBalance.toFixed(2)} ETB
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setStake1(Math.max(10, stake1 - 10))}
-                  disabled={hasBet1}
-                  className="w-10 h-10 rounded-xl bg-[#1a2333] hover:bg-[#232f45] border border-[#2b3a54] text-white font-black text-lg disabled:opacity-40"
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  value={stake1}
-                  onChange={(e) => setStake1(Math.max(10, Number(e.target.value)))}
-                  disabled={hasBet1}
-                  className="w-full h-10 rounded-xl bg-[#0b0e14] border border-[#222e42] px-3 font-mono font-bold text-center text-white focus:outline-none focus:border-[#00E676] text-base"
-                />
-                <button
-                  onClick={() => setStake1(stake1 + 10)}
-                  disabled={hasBet1}
-                  className="w-10 h-10 rounded-xl bg-[#1a2333] hover:bg-[#232f45] border border-[#2b3a54] text-white font-black text-lg disabled:opacity-40"
-                >
-                  +
-                </button>
-              </div>
-              {/* Quick Chips */}
-              <div className="flex items-center gap-1.5 mt-1">
-                {[10, 20, 50, 100, 500].map((val) => (
-                  <button
-                    key={val}
-                    onClick={() => setStake1(val)}
-                    disabled={hasBet1}
-                    className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all ${
-                      stake1 === val
-                        ? 'bg-[#00E676]/20 border border-[#00E676] text-[#00E676]'
-                        : 'bg-[#182130] text-gray-300 hover:bg-[#202c40] border border-[#243147]'
-                    }`}
-                  >
-                    {val}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Auto-Cashout & Action Button */}
-            <div className="flex flex-col gap-2 w-full md:w-1/2">
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-xs font-bold text-gray-400 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isAutoCashout1}
-                    onChange={(e) => setIsAutoCashout1(e.target.checked)}
-                    className="accent-[#00E676] w-4 h-4 rounded cursor-pointer"
-                  />
-                  <span>Auto Cash Out</span>
-                </label>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="text"
-                    value={autoCashout1}
-                    onChange={(e) => setAutoCashout1(e.target.value)}
-                    disabled={!isAutoCashout1 || hasBet1}
-                    className="w-16 h-7 rounded-lg bg-[#0b0e14] border border-[#222e42] px-2 text-xs font-mono font-bold text-center text-white disabled:opacity-40"
-                  />
-                  <span className="text-xs text-gray-400 font-bold">x</span>
-                </div>
-              </div>
-
-              {/* Main BET / CASH OUT Button */}
-              {!hasBet1 ? (
-                <button
-                  onClick={handlePlaceBet1}
-                  disabled={gameState !== 'BETTING'}
-                  className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#00c853] to-[#00E676] hover:from-[#00b248] hover:to-[#00d66c] text-black font-black text-lg tracking-wider uppercase shadow-xl shadow-[#00E676]/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed transform active:scale-98 flex items-center justify-center gap-2"
-                >
-                  <Plane className="w-5 h-5 fill-black" />
-                  <span>BET {stake1} ETB</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleCashout1}
-                  onTouchEnd={handleCashout1}
-                  disabled={cashedOut1 || gameState !== 'FLYING'}
-                  className={`w-full h-14 rounded-2xl text-black font-black text-lg tracking-wider uppercase shadow-xl transition-all transform active:scale-95 flex flex-col items-center justify-center leading-tight ${
-                    cashedOut1
-                      ? 'bg-gradient-to-r from-emerald-500 to-[#00E676] shadow-[#00E676]/40 cursor-default'
-                      : 'bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-600 hover:to-amber-500 shadow-amber-400/30 active:brightness-110 cursor-pointer'
-                  } disabled:opacity-50`}
-                >
-                  <span className="text-xs font-extrabold uppercase">
-                    {cashedOut1 ? '✓ CASHED OUT' : 'CASH OUT'}
-                  </span>
-                  <span className="text-xl font-black">
-                    {cashedOut1
-                      ? `+${(cashoutWin1 || stake1 * multiplier).toFixed(2)} ETB`
-                      : `${(stake1 * multiplier).toFixed(2)} ETB`}
-                  </span>
-                </button>
-              )}
-            </div>
+          {/* Dual Order Panels: Order 1 & Order 2 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {renderBetPanel(1)}
+            {renderBetPanel(2)}
           </div>
         </div>
 

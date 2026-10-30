@@ -353,7 +353,7 @@ app.post('/api/affiliate/withdraw', (req, res) => {
 io.on('connection', (socket) => {
   socket.emit('aviator_state', aviatorRoom.getState());
 
-  socket.on('aviator_place_bet', (data: { userId?: string; username?: string; stake: number; autoCashout?: number }) => {
+  socket.on('aviator_place_bet', (data: { userId?: string; username?: string; stake: number; autoCashout?: number; slot?: number }) => {
     try {
       const uId = data.userId || 'EB-741891';
       const uName = data.username || 'Player';
@@ -364,26 +364,39 @@ io.on('connection', (socket) => {
         stake: Number(data.stake),
         autoCashout: data.autoCashout ? Number(data.autoCashout) : undefined
       });
-      socket.emit('aviator_bet_confirmed', bet);
+      socket.emit('aviator_bet_confirmed', { ...bet, slot: data.slot || 1 });
 
       const wallet = WalletService.getOrCreateWallet(uId);
       socket.emit('wallet_updated', { userId: uId, wallet });
     } catch (err: any) {
-      socket.emit('aviator_error', { message: err.message });
+      socket.emit('aviator_error', { message: err.message, slot: data.slot || 1 });
     }
   });
 
-  socket.on('aviator_cash_out', (data: { betId: string; multiplier: number; userId?: string }) => {
+  socket.on('aviator_cancel_bet', (data: { betId?: string; userId?: string; slot?: number }) => {
+    try {
+      const uId = data.userId || 'EB-741891';
+      const bet = aviatorRoom.cancelBet(data.betId || '', uId);
+      socket.emit('aviator_bet_cancelled_success', { betId: bet.id, slot: data.slot || 1 });
+
+      const wallet = WalletService.getOrCreateWallet(uId);
+      socket.emit('wallet_updated', { userId: uId, wallet });
+    } catch (err: any) {
+      socket.emit('aviator_error', { message: err.message, slot: data.slot || 1 });
+    }
+  });
+
+  socket.on('aviator_cash_out', (data: { betId: string; multiplier: number; userId?: string; slot?: number }) => {
     try {
       const uId = data.userId || 'EB-741891';
       const bet = aviatorRoom.executeCashout(data.betId, data.multiplier, uId);
-      socket.emit('aviator_cashout_success', bet);
+      socket.emit('aviator_cashout_success', { ...bet, slot: data.slot || 1 });
 
       const wallet = WalletService.getOrCreateWallet(uId);
       socket.emit('wallet_updated', { userId: uId, wallet });
     } catch (err: any) {
       console.error('Aviator cashout error:', err.message);
-      socket.emit('aviator_error', { message: err.message });
+      socket.emit('aviator_error', { message: err.message, slot: data.slot || 1 });
     }
   });
 });

@@ -336,25 +336,37 @@ io.on('connection', (socket) => {
                 stake: Number(data.stake),
                 autoCashout: data.autoCashout ? Number(data.autoCashout) : undefined
             });
-            socket.emit('aviator_bet_confirmed', bet);
+            socket.emit('aviator_bet_confirmed', { ...bet, slot: data.slot || 1 });
             const wallet = walletService_js_1.WalletService.getOrCreateWallet(uId);
             socket.emit('wallet_updated', { userId: uId, wallet });
         }
         catch (err) {
-            socket.emit('aviator_error', { message: err.message });
+            socket.emit('aviator_error', { message: err.message, slot: data.slot || 1 });
+        }
+    });
+    socket.on('aviator_cancel_bet', (data) => {
+        try {
+            const uId = data.userId || 'EB-741891';
+            const bet = aviatorRoom.cancelBet(data.betId || '', uId);
+            socket.emit('aviator_bet_cancelled_success', { betId: bet.id, slot: data.slot || 1 });
+            const wallet = walletService_js_1.WalletService.getOrCreateWallet(uId);
+            socket.emit('wallet_updated', { userId: uId, wallet });
+        }
+        catch (err) {
+            socket.emit('aviator_error', { message: err.message, slot: data.slot || 1 });
         }
     });
     socket.on('aviator_cash_out', (data) => {
         try {
             const uId = data.userId || 'EB-741891';
             const bet = aviatorRoom.executeCashout(data.betId, data.multiplier, uId);
-            socket.emit('aviator_cashout_success', bet);
+            socket.emit('aviator_cashout_success', { ...bet, slot: data.slot || 1 });
             const wallet = walletService_js_1.WalletService.getOrCreateWallet(uId);
             socket.emit('wallet_updated', { userId: uId, wallet });
         }
         catch (err) {
             console.error('Aviator cashout error:', err.message);
-            socket.emit('aviator_error', { message: err.message });
+            socket.emit('aviator_error', { message: err.message, slot: data.slot || 1 });
         }
     });
 });

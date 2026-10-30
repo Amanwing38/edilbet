@@ -26,6 +26,7 @@ export type TransactionType =
   | 'WITHDRAWAL'
   | 'AVIATOR_BET'
   | 'AVIATOR_WIN'
+  | 'AVIATOR_REFUND'
   | 'KENO_BET'
   | 'KENO_WIN'
   | 'SLOT_BET'

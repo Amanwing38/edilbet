@@ -30,6 +30,7 @@ export interface Transaction {
 export interface AviatorLiveBet {
   id: string;
   userId?: string;
+  slot?: number;
   username: string;
   avatarLetter: string;
   stake: number;
