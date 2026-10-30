@@ -1,10 +1,11 @@
 services:
   - type: web
     name: edilbet
-    runtime: docker
+    runtime: node
     plan: free
     region: frankfurt
-    dockerfilePath: ./Dockerfile
+    buildCommand: npm run build
+    startCommand: npm start
     envVars:
       - key: BOT_TOKEN
         sync: false
