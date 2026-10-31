@@ -54,11 +54,20 @@ if (BOT_TOKEN) {
   console.warn('⚠️ BOT_TOKEN is not defined in environment variables. Bot launch skipped.');
 }
 
-// Keep-Alive Self Ping: Keeps Render cloud server awake 24/7 without sleeping
-const KEEP_ALIVE_URL = process.env.WEBAPP_URL || process.env.RENDER_EXTERNAL_URL || 'https://edilbet-tf82.onrender.com';
+// Keep-Alive Self Ping: Keeps Render cloud servers awake 24/7 without sleeping
+const keepAliveUrls = [
+  'https://edilbet.onrender.com/api/health',
+  'https://edilbet-tf82.onrender.com/api/health'
+];
 setInterval(() => {
-  fetch(`${KEEP_ALIVE_URL}/api/health`).catch(() => {});
-}, 4 * 60 * 1000);
+  keepAliveUrls.forEach((url) => {
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) console.warn(`Keep-alive ping to ${url} returned ${res.status}`);
+      })
+      .catch(() => {});
+  });
+}, 3 * 60 * 1000);
 
 // Helper to get active user ID from request
 function getUserId(req: express.Request): string {
