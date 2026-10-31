@@ -43,16 +43,22 @@ app.use(express.static(clientDistPath));
 const aviatorRoom = new AviatorRoom(io);
 aviatorRoom.start();
 
-// Launch Telegram Bot (@EdilBetET_bot)
-const BOT_TOKEN = process.env.BOT_TOKEN || '';
+// Launch Telegram Bot (@EdilBet_bot)
+const BOT_TOKEN = process.env.BOT_TOKEN || '9032798707:AAFHG03bFuzmievRJLCBEfq7nNJ_5dkWwfE';
 if (BOT_TOKEN) {
-  launchBot(BOT_TOKEN);
+  launchBot(BOT_TOKEN, process.env.WEBAPP_URL || 'https://edilbet-tf82.onrender.com');
   registerSocketEmitter((userId, wallet) => {
     io.emit('wallet_updated', { userId, wallet });
   });
 } else {
   console.warn('⚠️ BOT_TOKEN is not defined in environment variables. Bot launch skipped.');
 }
+
+// Keep-Alive Self Ping: Keeps Render cloud server awake 24/7 without sleeping
+const KEEP_ALIVE_URL = process.env.WEBAPP_URL || process.env.RENDER_EXTERNAL_URL || 'https://edilbet-tf82.onrender.com';
+setInterval(() => {
+  fetch(`${KEEP_ALIVE_URL}/api/health`).catch(() => {});
+}, 4 * 60 * 1000);
 
 // Helper to get active user ID from request
 function getUserId(req: express.Request): string {

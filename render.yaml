@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: edilbet
+    name: edilbet-tf82
     runtime: node
     plan: free
     region: frankfurt
@@ -8,8 +8,8 @@ services:
     startCommand: npm start
     envVars:
       - key: BOT_TOKEN
-        sync: false
+        value: 9032798707:AAFHG03bFuzmievRJLCBEfq7nNJ_5dkWwfE
+      - key: WEBAPP_URL
+        value: https://edilbet-tf82.onrender.com
       - key: PORT
         value: 10000
-      - key: WEBAPP_URL
-        value: https://edilbet.onrender.com
