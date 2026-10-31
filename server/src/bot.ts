@@ -78,6 +78,10 @@ export async function notifyAdminNewWithdrawal(tx: any) {
   }
 }
 
+export function getBot(): Bot | null {
+  return botInstance;
+}
+
 export function updateBotWebAppUrl(url: string) {
   currentWebAppHttpsUrl = url;
   if (botInstance) {
@@ -91,13 +95,24 @@ export function updateBotWebAppUrl(url: string) {
   }
 }
 
-export function launchBot(token: string, initialUrl?: string) {
+function startPolling(bot: Bot) {
+  bot.start({
+    onStart: (botInfo) => {
+      console.log(`🤖 Telegram Bot @${botInfo.username} polling active!`);
+    }
+  }).catch((err) => {
+    console.error('⚠️ Telegram polling error, auto-restarting in 3s:', err.message);
+    setTimeout(() => startPolling(bot), 3000);
+  });
+}
+
+export function launchBot(token: string, initialUrl?: string): Bot | null {
   if (initialUrl) currentWebAppHttpsUrl = initialUrl;
 
   try {
     if (!token || token.includes('your_token')) {
-      console.log('ℹ️ Telegram Bot Token not configured. Skipping bot polling.');
-      return;
+      console.log('ℹ️ Telegram Bot Token not configured. Skipping bot initialization.');
+      return null;
     }
 
     const bot = new Bot(token);
@@ -438,14 +453,24 @@ export function launchBot(token: string, initialUrl?: string) {
       }
     });
 
-    bot.start({
-      onStart: (botInfo) => {
-        console.log(`🤖 Telegram Bot @${botInfo.username} launched successfully with dynamic accounts!`);
-      }
-    }).catch((err) => {
-      console.error('⚠️ Telegram polling error (handled):', err.message);
-    });
+    // In production on Render with HTTPS, use Webhook for 100% reliability
+    if (currentWebAppHttpsUrl && currentWebAppHttpsUrl.startsWith('https://')) {
+      const webhookUrl = `${currentWebAppHttpsUrl}/api/telegram/webhook`;
+      bot.api.setWebhook(webhookUrl, { drop_pending_updates: false })
+        .then(() => {
+          console.log(`🚀 Telegram Webhook registered successfully with Telegram: ${webhookUrl}`);
+        })
+        .catch((err) => {
+          console.warn('⚠️ Webhook set failed, falling back to auto-restarting polling:', err.message);
+          startPolling(bot);
+        });
+    } else {
+      startPolling(bot);
+    }
+
+    return bot;
   } catch (err: any) {
     console.error('Failed to launch Telegram bot:', err.message);
+    return null;
   }
 }
