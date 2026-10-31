@@ -245,53 +245,76 @@ app.post('/api/games/keno/play', (req, res) => {
   }
 });
 
-// Chicken Road Mini-Game
+// Chicken Road Mini-Game (Chicken 2 Road)
 app.post('/api/games/chicken-road/step', (req, res) => {
   try {
     const userId = getUserId(req);
     const { stepIndex, currentMultiplier, isCashingOut, stake, difficulty } = req.body;
-    const stakeNum = Number(stake) || 20;
-    const diff = difficulty || 'medium';
+    const stakeNum = Math.max(1, Number(stake) || 4);
+    const diff = (difficulty || 'low').toLowerCase();
 
+    // Cash out win
     if (isCashingOut) {
-      const payout = parseFloat((stakeNum * currentMultiplier).toFixed(2));
-      const wallet = WalletService.creditWin(userId, payout, 'CHICKEN_WIN', `Chicken Road Cashout @ ${currentMultiplier}x`);
+      const mult = Number(currentMultiplier) || 1.0;
+      const payout = parseFloat((stakeNum * mult).toFixed(2));
+      const wallet = WalletService.creditWin(userId, payout, 'CHICKEN_WIN', `Chicken Road Cashout @ ${mult}x`);
       io.emit('wallet_updated', { userId, wallet });
       return res.json({ success: true, cashedOut: true, payout, wallet });
     }
 
     // Initial game start: debit stake
     if (stepIndex === 0) {
-      const wallet = WalletService.debitStake(userId, stakeNum, 'CHICKEN_BET', 'Chicken Road 2.0');
+      const wallet = WalletService.debitStake(userId, stakeNum, 'CHICKEN_BET', `Chicken Road (${diff})`);
       io.emit('wallet_updated', { userId, wallet });
       return res.json({ success: true, started: true, wallet });
     }
 
-    // Survival probability and multiplier growth based on difficulty
-    let survivalRate = 0.80;
-    let multGrowth = 1.25;
+    // 3 Difficulty tiers configuration
+    const difficultyConfigs: Record<string, { survivalRate: number; multipliers: number[] }> = {
+      low: {
+        survivalRate: 0.95,
+        multipliers: [1.01, 1.03, 1.06, 1.10, 1.15, 1.21, 1.28, 1.36, 1.45, 1.56, 1.70, 1.88, 2.10, 2.40, 2.80, 3.40, 4.20, 5.50, 7.50, 10.00]
+      },
+      medium: {
+        survivalRate: 0.84,
+        multipliers: [1.05, 1.12, 1.25, 1.42, 1.65, 1.95, 2.35, 2.90, 3.65, 4.70, 6.20, 8.50, 12.00, 18.00, 30.00]
+      },
+      high: {
+        survivalRate: 0.68,
+        multipliers: [1.20, 1.50, 2.00, 2.80, 4.00, 6.00, 9.50, 16.00, 28.00, 50.00]
+      }
+    };
 
-    if (diff === 'easy') {
-      survivalRate = 0.82;
-      multGrowth = 1.22;
-    } else if (diff === 'medium') {
-      survivalRate = 0.68;
-      multGrowth = 1.45;
-    } else if (diff === 'hard') {
-      survivalRate = 0.52;
-      multGrowth = 1.85;
-    } else if (diff === 'daredevil') {
-      survivalRate = 0.32;
-      multGrowth = 2.85;
-    }
+    const activeDiff = (diff === 'easy' ? 'low' : diff === 'hard' || diff === 'daredevil' ? 'high' : diff);
+    const config = difficultyConfigs[activeDiff] || difficultyConfigs.low;
 
-    const survives = Math.random() < survivalRate;
+    // Determine survival
+    const survives = Math.random() < config.survivalRate;
     if (!survives) {
-      return res.json({ success: true, crashed: true, payout: 0 });
+      const carTypes = ['truck', 'sport', 'sedan', 'van'];
+      const carColors = ['#f44336', '#ffb300', '#2196f3', '#111827', '#e91e63'];
+      const carType = carTypes[Math.floor(Math.random() * carTypes.length)];
+      const carColor = carColors[Math.floor(Math.random() * carColors.length)];
+
+      return res.json({
+        success: true,
+        crashed: true,
+        carCrash: true,
+        carType,
+        carColor,
+        payout: 0
+      });
     }
 
-    const nextMult = parseFloat((currentMultiplier * multGrowth).toFixed(2));
-    res.json({ success: true, crashed: false, nextMultiplier: nextMult });
+    const multIdx = Math.min(stepIndex - 1, config.multipliers.length - 1);
+    const nextMult = config.multipliers[multIdx] || parseFloat((currentMultiplier * 1.15).toFixed(2));
+
+    res.json({
+      success: true,
+      crashed: false,
+      nextMultiplier: nextMult,
+      isFinalLane: stepIndex >= config.multipliers.length
+    });
   } catch (err: any) {
     res.status(400).json({ success: false, error: err.message });
   }

@@ -16,7 +16,8 @@
       "firstName": "Aman",
       "language": "am",
       "role": "user",
-      "createdAt": "2026-10-30T20:31:25.542Z"
+      "createdAt": "2026-10-30T20:31:25.542Z",
+      "phoneNumber": "+251938749239"
     }
   },
   "usersByTelegramId": {
@@ -37,12 +38,12 @@
     "EB-741892": {
       "userId": "EB-741892",
       "currency": "ETB",
-      "availableBalance": 10090,
+      "availableBalance": 10090.04,
       "bonusBalance": 0,
       "wagerRemaining": 0,
       "totalDeposited": 10100,
       "totalWithdrawn": 200,
-      "updatedAt": "2026-10-30T20:48:21.894Z"
+      "updatedAt": "2026-10-31T05:28:50.806Z"
     }
   },
   "transactions": {
@@ -159,6 +160,32 @@
       "referenceCode": "IIIII",
       "settledAt": "2026-10-30T20:48:21.883Z",
       "adminNote": "Customer submitted payment proof. Balance instantly credited."
+    },
+    "829d4253-ac86-4cd9-902c-f0f0ebc0080a": {
+      "id": "829d4253-ac86-4cd9-902c-f0f0ebc0080a",
+      "orderNumber": "TX-530735",
+      "userId": "EB-741892",
+      "username": "Chicken Road (low)",
+      "type": "CHICKEN_BET",
+      "amount": -4,
+      "fee": 0,
+      "paymentMethod": "WALLET",
+      "status": "COMPLETED",
+      "createdAt": "2026-10-31T05:28:50.735Z",
+      "settledAt": "2026-10-31T05:28:50.735Z"
+    },
+    "63c1a810-5da5-4d30-9893-34d225856ddb": {
+      "id": "63c1a810-5da5-4d30-9893-34d225856ddb",
+      "orderNumber": "WIN-530811",
+      "userId": "EB-741892",
+      "username": "Chicken Road Cashout @ 1.01x",
+      "type": "CHICKEN_WIN",
+      "amount": 4.04,
+      "fee": 0,
+      "paymentMethod": "WALLET",
+      "status": "COMPLETED",
+      "createdAt": "2026-10-31T05:28:50.811Z",
+      "settledAt": "2026-10-31T05:28:50.811Z"
     }
   }
 }

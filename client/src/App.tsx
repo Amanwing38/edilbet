@@ -228,6 +228,7 @@ export const App: React.FC = () => {
                   language={language}
                   currentUser={currentUser}
                   onBack={() => setSelectedGame('lobby')}
+                  onOpenDeposit={() => setShowDepositModal(true)}
                 />
               )}
 
