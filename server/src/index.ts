@@ -14,7 +14,6 @@ import { PromotionService } from './services/promotionService.js';
 import { AffiliateService } from './services/affiliateService.js';
 import { DBService } from './db/database.js';
 import { launchBot, notifyAdminNewDeposit, notifyAdminNewWithdrawal, registerSocketEmitter } from './bot.js';
-import { webhookCallback } from 'grammy';
 
 process.on('uncaughtException', (err) => {
   console.error('Server Uncaught Exception (recovering):', err.message);
@@ -44,13 +43,10 @@ app.use(express.static(clientDistPath));
 const aviatorRoom = new AviatorRoom(io);
 aviatorRoom.start();
 
-// Launch Telegram Bot (@EdilBet_bot) with Webhook & Auto-Restart
+// Launch Telegram Bot (@EdilBet_bot) with Auto-Restart Polling
 const BOT_TOKEN = process.env.BOT_TOKEN || '9032798707:AAFHG03bFuzmievRJLCBEfq7nNJ_5dkWwfE';
 if (BOT_TOKEN) {
-  const bot = launchBot(BOT_TOKEN, process.env.WEBAPP_URL || 'https://edilbet-tf82.onrender.com');
-  if (bot) {
-    app.use('/api/telegram/webhook', webhookCallback(bot, 'express'));
-  }
+  launchBot(BOT_TOKEN, process.env.WEBAPP_URL || 'https://edilbet-tf82.onrender.com');
   registerSocketEmitter((userId, wallet) => {
     io.emit('wallet_updated', { userId, wallet });
   });

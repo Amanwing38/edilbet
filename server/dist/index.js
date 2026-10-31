@@ -19,7 +19,6 @@ const promotionService_js_1 = require("./services/promotionService.js");
 const affiliateService_js_1 = require("./services/affiliateService.js");
 const database_js_1 = require("./db/database.js");
 const bot_js_1 = require("./bot.js");
-const grammy_1 = require("grammy");
 process.on('uncaughtException', (err) => {
     console.error('Server Uncaught Exception (recovering):', err.message);
 });
@@ -43,13 +42,10 @@ app.use(express_1.default.static(clientDistPath));
 // Initialize Aviator Real-time Engine
 const aviatorRoom = new aviatorRoom_js_1.AviatorRoom(io);
 aviatorRoom.start();
-// Launch Telegram Bot (@EdilBet_bot) with Webhook & Auto-Restart
+// Launch Telegram Bot (@EdilBet_bot) with Auto-Restart Polling
 const BOT_TOKEN = process.env.BOT_TOKEN || '9032798707:AAFHG03bFuzmievRJLCBEfq7nNJ_5dkWwfE';
 if (BOT_TOKEN) {
-    const bot = (0, bot_js_1.launchBot)(BOT_TOKEN, process.env.WEBAPP_URL || 'https://edilbet-tf82.onrender.com');
-    if (bot) {
-        app.use('/api/telegram/webhook', (0, grammy_1.webhookCallback)(bot, 'express'));
-    }
+    (0, bot_js_1.launchBot)(BOT_TOKEN, process.env.WEBAPP_URL || 'https://edilbet-tf82.onrender.com');
     (0, bot_js_1.registerSocketEmitter)((userId, wallet) => {
         io.emit('wallet_updated', { userId, wallet });
     });

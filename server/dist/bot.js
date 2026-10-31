@@ -92,15 +92,22 @@ function updateBotWebAppUrl(url) {
         }).catch((err) => console.error('Error updating menu button:', err.message));
     }
 }
-function startPolling(bot) {
-    bot.start({
-        onStart: (botInfo) => {
-            console.log(`🤖 Telegram Bot @${botInfo.username} polling active!`);
-        }
-    }).catch((err) => {
-        console.error('⚠️ Telegram polling error, auto-restarting in 3s:', err.message);
+async function startPolling(bot) {
+    try {
+        await bot.api.deleteWebhook({ drop_pending_updates: false }).catch(() => { });
+        bot.start({
+            onStart: (botInfo) => {
+                console.log(`🤖 Telegram Bot @${botInfo.username} polling active & ready!`);
+            }
+        }).catch((err) => {
+            console.error('⚠️ Telegram polling error, auto-restarting in 3s:', err.message);
+            setTimeout(() => startPolling(bot), 3000);
+        });
+    }
+    catch (err) {
+        console.error('startPolling error:', err.message);
         setTimeout(() => startPolling(bot), 3000);
-    });
+    }
 }
 function launchBot(token, initialUrl) {
     if (initialUrl)
@@ -387,21 +394,8 @@ function launchBot(token, initialUrl) {
                 await ctx.answerCallbackQuery({ text: err.message, show_alert: true });
             }
         });
-        // In production on Render with HTTPS, use Webhook for 100% reliability
-        if (currentWebAppHttpsUrl && currentWebAppHttpsUrl.startsWith('https://')) {
-            const webhookUrl = `${currentWebAppHttpsUrl}/api/telegram/webhook`;
-            bot.api.setWebhook(webhookUrl, { drop_pending_updates: false })
-                .then(() => {
-                console.log(`🚀 Telegram Webhook registered successfully with Telegram: ${webhookUrl}`);
-            })
-                .catch((err) => {
-                console.warn('⚠️ Webhook set failed, falling back to auto-restarting polling:', err.message);
-                startPolling(bot);
-            });
-        }
-        else {
-            startPolling(bot);
-        }
+        // Always start resilient auto-restarting polling for 100% reliable 24/7 delivery
+        startPolling(bot);
         return bot;
     }
     catch (err) {
